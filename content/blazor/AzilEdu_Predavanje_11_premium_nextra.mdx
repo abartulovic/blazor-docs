@@ -1,0 +1,678 @@
+---
+title: "Predavanje 11 — Medicinske bilješke i evidencija tretmana"
+description: "Dodavanje modula za medicinske zapise, tretmane i veterinarske napomene u AzilEdu aplikaciju."
+---
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 11"
+  title="Medicinske bilješke i evidencija tretmana"
+  subtitle="Aplikacija za azil nije potpuna ako zna samo osnovne podatke o životinji. U ovoj lekciji uvodimo medicinske zapise i gradimo prvi ozbiljniji povezani modul nad postojećim detaljima životinje."
+  badges={["Blazor Web App", "EF Core", "Relacije", "MudBlazor"]}
+/>
+
+<InfoBox type="info" title="Što gradimo u ovoj lekciji?">
+  Do sada aplikacija zna prikazati životinju, njezinu vrstu, pasminu, status i fotografiju. Sada joj dodajemo medicinski kontekst: veterinarske napomene, datume pregleda, terapije i osnovnu evidenciju tretmana.
+</InfoBox>
+
+## Cilj predavanja
+
+Cilj ove lekcije je proširiti AzilEdu tako da za svaku životinju možemo:
+
+- spremiti više medicinskih zapisa
+- zabilježiti datum pregleda ili tretmana
+- dodati opis, terapiju i napomenu
+- prikazati povijest zapisa na details stranici životinje
+- dodati novi zapis kroz zasebnu formu ili ugrađenu sekciju
+- obrisati zapis ako je unesen pogrešno
+
+Na kraju ove lekcije aplikacija više nije samo katalog životinja, nego počinje nalikovati stvarnom informacijskom sustavu za azil.
+
+---
+
+## Zašto je ovaj modul važan?
+
+U praksi azil mora pratiti mnogo više od osnovnih podataka o životinji. Djelatnici trebaju znati:
+
+- je li životinja bila na pregledu
+- je li primila terapiju
+- ima li otvorene zdravstvene probleme
+- kada je zadnji put pregledana
+- postoje li posebne napomene koje treba uzeti u obzir prije udomljenja
+
+Bez toga aplikacija ostaje korisna samo za osnovni pregled podataka. S medicinskom evidencijom projekt postaje mnogo ozbiljniji.
+
+<InfoBox type="success" title="Didaktička ideja ove lekcije">
+  Učenici prvi put rade modul u kojem jedna životinja ima <strong>više povezanih zapisa</strong>. To je važan iskorak iz jednostavnog CRUD-a nad jednom tablicom.
+</InfoBox>
+
+---
+
+## Novi entitet: `MedicalRecord`
+
+Za ovaj modul uvodimo novu tablicu. Jedna životinja može imati više medicinskih zapisa, što znači da radimo relaciju:
+
+- `Animal` → jedan
+- `MedicalRecord` → više
+
+### Predložena svojstva klase
+
+```csharp
+public class MedicalRecord
+{
+    public int Id { get; set; }
+
+    public int AnimalId { get; set; }
+    public Animal? Animal { get; set; }
+
+    public DateTime RecordDate { get; set; } = DateTime.Today;
+
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? Therapy { get; set; }
+    public string? VeterinarianName { get; set; }
+    public bool IsResolved { get; set; }
+}
+```
+
+### Objašnjenje polja
+
+- `AnimalId` povezuje zapis s točno jednom životinjom
+- `RecordDate` govori kada je pregled ili događaj zabilježen
+- `Title` služi za kratak naziv zapisa, npr. “Cijepljenje”, “Kontrolni pregled”, “Liječenje uha”
+- `Description` opisuje što se dogodilo
+- `Therapy` čuva terapiju ili preporuku
+- `VeterinarianName` je korisno polje za kasniji pregled povijesti
+- `IsResolved` označava je li problem riješen
+
+<InfoBox type="warning" title="Nemojte pretjerati s modelom u ovoj fazi">
+  U ovoj lekciji cilj nije napraviti savršeni medicinski sustav, nego razumjeti kako se radi modul s više povezanih zapisa. Zato model držimo dovoljno bogatim da bude koristan, ali ne toliko velikim da učenici izgube nit.
+</InfoBox>
+
+---
+
+## Gdje smjestiti klasu?
+
+Ako u projektu već imaš mapu `Models`, onda novu klasu smjesti u:
+
+```text
+Api/Models/MedicalRecord.cs
+```
+
+Ako ste modele do sada držali na drugom mjestu, nastavite istim obrascem kako bi struktura projekta ostala dosljedna.
+
+---
+
+## Povezivanje s klasom `Animal`
+
+U klasu `Animal` dodaj navigacijsko svojstvo:
+
+```csharp
+public List<MedicalRecord> MedicalRecords { get; set; } = new();
+```
+
+Tako EF Core razumije da jedna životinja može imati više povezanih medicinskih zapisa.
+
+### Primjer proširene klase `Animal`
+
+```csharp
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public string? Description { get; set; }
+    public string? PhotoPath { get; set; }
+
+    public int SpeciesId { get; set; }
+    public Species? Species { get; set; }
+
+    public int? BreedId { get; set; }
+    public Breed? Breed { get; set; }
+
+    public int AnimalStatusId { get; set; }
+    public AnimalStatus? AnimalStatus { get; set; }
+
+    public List<MedicalRecord> MedicalRecords { get; set; } = new();
+}
+```
+
+---
+
+## Dodavanje `DbSet` svojstva u `AzilEduDbContext`
+
+U `AzilEduDbContext` dodaj:
+
+```csharp
+public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+```
+
+### Primjer konteksta
+
+```csharp
+public class AzilEduDbContext : DbContext
+{
+    public AzilEduDbContext(DbContextOptions<AzilEduDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Animal> Animals => Set<Animal>();
+    public DbSet<Species> Species => Set<Species>();
+    public DbSet<Breed> Breeds => Set<Breed>();
+    public DbSet<AnimalStatus> AnimalStatuses => Set<AnimalStatus>();
+    public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+}
+```
+
+---
+
+## Migracija baze
+
+Nakon dodavanja novog entiteta i odnosa, potrebno je napraviti novu migraciju.
+
+```powershell
+Add-Migration AddMedicalRecords
+Update-Database
+```
+
+### Što se ovdje događa?
+
+- `Add-Migration AddMedicalRecords` stvara opis promjene baze
+- `Update-Database` tu promjenu zaista primjenjuje na bazu
+
+<InfoBox type="info" title="Što očekujemo nakon migracije?">
+  U bazi bi se trebala pojaviti nova tablica `MedicalRecords` s vanjskim ključem prema tablici `Animals`.
+</InfoBox>
+
+<InfoBox type="info" title="Dodaj screenshot naknadno">
+
+Na ovom mjestu umetni screenshot uspješne migracije u **Package Manager Console**.
+
+**Predloženo ime datoteke:** `efcore-addmedicalrecords-console.webp`  
+**Lokacija:** `/images/aziledu/predavanje-11/efcore-addmedicalrecords-console.webp`
+
+</InfoBox>
+
+---
+
+## Seed podaci za medicinske zapise
+
+Ako želiš da učenici odmah vide rezultat bez ručnog unosa, možeš dodati nekoliko seed zapisa.
+
+### Primjer početnih zapisa
+
+```csharp
+modelBuilder.Entity<MedicalRecord>().HasData(
+    new MedicalRecord
+    {
+        Id = 1,
+        AnimalId = 1,
+        RecordDate = new DateTime(2026, 3, 1),
+        Title = "Kontrolni pregled",
+        Description = "Opće stanje uredno. Preporučena daljnja kontrola za mjesec dana.",
+        Therapy = "Nema terapije",
+        VeterinarianName = "dr. vet. Ana Marić",
+        IsResolved = true
+    },
+    new MedicalRecord
+    {
+        Id = 2,
+        AnimalId = 1,
+        RecordDate = new DateTime(2026, 3, 5),
+        Title = "Liječenje uha",
+        Description = "Primijećena iritacija desnog uha.",
+        Therapy = "Kapi 2x dnevno tijekom 7 dana",
+        VeterinarianName = "dr. vet. Ivan Kovač",
+        IsResolved = false
+    }
+);
+```
+
+<InfoBox type="warning" title="Pazite na ID vrijednosti kod seed podataka">
+  Ako već koristiš seed podatke u drugim tablicama, nove ID vrijednosti ne smiju se preklapati. Također, `AnimalId` mora odgovarati stvarnoj životinji koja postoji u bazi.
+</InfoBox>
+
+---
+
+## Proširenje servisa za rad s medicinskim zapisima
+
+Do sada već imaš `AnimalService`. Sada možeš napraviti novi servis, npr. `MedicalRecordService`, ili logiku dodati u postojeći servis ako još ne želite previše klasa.
+
+Moj savjet: uvedi poseban servis. To je urednije.
+
+### Sučelje servisa
+
+```csharp
+public interface IMedicalRecordService
+{
+    Task<List<MedicalRecord>> GetByAnimalIdAsync(int animalId);
+    Task AddAsync(MedicalRecord record);
+    Task DeleteAsync(int id);
+}
+```
+
+### Implementacija servisa
+
+```csharp
+public class MedicalRecordService : IMedicalRecordService
+{
+    private readonly AzilEduDbContext _db;
+
+    public MedicalRecordService(AzilEduDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<List<MedicalRecord>> GetByAnimalIdAsync(int animalId)
+    {
+        return await _db.MedicalRecords
+            .Where(r => r.AnimalId == animalId)
+            .OrderByDescending(r => r.RecordDate)
+            .ToListAsync();
+    }
+
+    public async Task AddAsync(MedicalRecord record)
+    {
+        _db.MedicalRecords.Add(record);
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var record = await _db.MedicalRecords.FindAsync(id);
+        if (record is null)
+            return;
+
+        _db.MedicalRecords.Remove(record);
+        await _db.SaveChangesAsync();
+    }
+}
+```
+
+### Registracija servisa
+
+U `Program.cs` dodaj:
+
+```csharp
+builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
+```
+
+---
+
+## Proširenje details stranice životinje
+
+Ovo je srce lekcije. Na details stranici sada više ne prikazujemo samo osnovne podatke, nego i povijest medicinskih zapisa.
+
+### Dohvat životinje s povezanim zapisima
+
+Ako na details stranici dohvaćaš životinju direktno iz baze, proširi upit:
+
+```csharp
+animal = await _db.Animals
+    .Include(a => a.Species)
+    .Include(a => a.Breed)
+    .Include(a => a.AnimalStatus)
+    .Include(a => a.MedicalRecords)
+    .FirstOrDefaultAsync(a => a.Id == id);
+```
+
+Ako koristiš servis, istu logiku stavi u servisnu metodu.
+
+<InfoBox type="info" title="Zašto koristimo `Include(a => a.MedicalRecords)`?">
+  Zato što želimo da EF Core učita i povezane medicinske zapise uz životinju. Bez toga details stranica ne bi imala podatke o pregledima i tretmanima.
+</InfoBox>
+
+---
+
+## Kako prikazati medicinske zapise?
+
+Ne preporučujem da sve staviš u jedan veliki blok teksta. Mnogo je preglednije prikazati zapise kroz:
+
+- kartice
+- tablicu
+- timeline stil
+
+Za ovu fazu kursa najbolji je kompromis: **MudPaper kartice ili jednostavna tablica**.
+
+### Primjer prikaza zapisa kroz kartice
+
+<CodePreviewSplit
+  title="Prikaz medicinskih zapisa na details stranici"
+  language="razor"
+  image="/images/aziledu/predavanje-11/previews/details-medical-cards.webp"
+  imageAlt="Prikaz medicinskih zapisa kroz više MudPaper kartica"
+  imageCaption="Datoteka slike: details-medical-cards.webp"
+  code={`<MudPaper Class="pa-4 mt-6">
+    <MudText Typo="Typo.h6" GutterBottom="true">Medicinska evidencija</MudText>
+
+    @if (animal?.MedicalRecords is null || !animal.MedicalRecords.Any())
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            Za ovu životinju još nema medicinskih zapisa.
+        </MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="2">
+            @foreach (var record in animal.MedicalRecords.OrderByDescending(r => r.RecordDate))
+            {
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.subtitle1"><strong>@record.Title</strong></MudText>
+                        <MudChip Color="@(record.IsResolved ? Color.Success : Color.Warning)" Variant="Variant.Filled">
+                            @(record.IsResolved ? "Riješeno" : "Otvoreno")
+                        </MudChip>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Datum: @record.RecordDate.ToShortDateString()
+                    </MudText>
+
+                    <MudText Typo="Typo.body1" Class="mt-2">
+                        @record.Description
+                    </MudText>
+
+                    @if (!string.IsNullOrWhiteSpace(record.Therapy))
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Terapija: @record.Therapy
+                        </MudText>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(record.VeterinarianName))
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-1">
+                            Veterinar: @record.VeterinarianName
+                        </MudText>
+                    }
+                </MudPaper>
+            }
+        </MudStack>
+    }
+</MudPaper>`}
+/>
+
+### Zašto je ovaj prikaz dobar?
+
+- učenik jasno vidi da jedna životinja ima više zapisa
+- svaki zapis je vizualno odvojen
+- status riješeno / otvoreno je odmah uočljiv
+- kasnije se lako može dodati gumb za uređivanje ili brisanje zapisa
+
+---
+
+## Dodavanje novog medicinskog zapisa
+
+Sada trebamo omogućiti i unos novog zapisa. To možemo napraviti na dva načina:
+
+1. zasebna stranica, npr. `/animals/{id}/medical/new`
+2. sekcija unutar details stranice
+
+Za učenike je uredniji prvi pristup, jer jasnije odvaja prikaz i unos.
+
+### Nova Razor stranica
+
+Predložena putanja:
+
+```text
+Components/Pages/Animals/Medical/New.razor
+```
+
+Ili, ovisno o tvojoj strukturi projekta, druga odgovarajuća lokacija.
+
+### Parametar životinje
+
+```razor
+@page "/animals/{AnimalId:int}/medical/new"
+@inject IMedicalRecordService MedicalRecordService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Novi medicinski zapis</PageTitle>
+```
+
+### Kod-behind logika i model forme
+
+```razor
+@code {
+    [Parameter]
+    public int AnimalId { get; set; }
+
+    private MedicalRecord model = new();
+
+    protected override void OnInitialized()
+    {
+        model.AnimalId = AnimalId;
+        model.RecordDate = DateTime.Today;
+    }
+
+    private async Task SaveAsync()
+    {
+        await MedicalRecordService.AddAsync(model);
+        Snackbar.Add("Medicinski zapis je uspješno dodan.", Severity.Success);
+        NavigationManager.NavigateTo($"/animals/{AnimalId}/details");
+    }
+}
+```
+
+---
+
+## Forma za unos medicinskog zapisa
+
+<CodePreviewSplit
+  title="Forma za novi medicinski zapis"
+  language="razor"
+  image="/images/aziledu/predavanje-11/previews/new-medicalrecord-form.webp"
+  imageAlt="MudBlazor forma za unos novog medicinskog zapisa"
+  imageCaption="Datoteka slike: new-medicalrecord-form.webp"
+  code={`<EditForm Model="model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <MudStack Spacing="2">
+        <MudTextField @bind-Value="model.Title"
+                      Label="Naslov zapisa"
+                      Variant="Variant.Outlined"
+                      Required="true" />
+
+        <MudDatePicker @bind-Date="model.RecordDate"
+                       Label="Datum zapisa"
+                       Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="model.Description"
+                      Label="Opis"
+                      Variant="Variant.Outlined"
+                      Lines="4"
+                      Required="true" />
+
+        <MudTextField @bind-Value="model.Therapy"
+                      Label="Terapija"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="model.VeterinarianName"
+                      Label="Veterinar"
+                      Variant="Variant.Outlined" />
+
+        <MudCheckBox @bind-Value="model.IsResolved"
+                     Label="Problem je riješen" />
+
+        <MudButton ButtonType="ButtonType.Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary">
+            Spremi zapis
+        </MudButton>
+    </MudStack>
+</EditForm>`}
+/>
+
+---
+
+## Dodavanje gumba na details stranicu
+
+Na details stranici korisniku treba ponuditi jasan put do forme za novi zapis.
+
+```razor
+<MudButton Variant="Variant.Filled"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           Href="@($"/animals/{animal?.Id}/medical/new")">
+    Novi medicinski zapis
+</MudButton>
+```
+
+<InfoBox type="info" title="Dodaj screenshot naknadno">
+
+Na ovom mjestu umetni screenshot gumba za **dodavanje medicinskog zapisa** na details stranici životinje.
+
+**Predloženo ime datoteke:** `details-add-medical-button.webp`  
+**Lokacija:** `/images/aziledu/predavanje-11/details-add-medical-button.webp`
+
+</InfoBox>
+
+---
+
+## Brisanje medicinskog zapisa
+
+Ako već imaš obrazac potvrde brisanja iz ranijih lekcija, sada ga možeš ponovno iskoristiti. To je dobar trenutak da učenici vide vrijednost ponovne uporabe koda.
+
+### Primjer metode za brisanje
+
+```csharp
+private async Task DeleteRecordAsync(int recordId)
+{
+    await MedicalRecordService.DeleteAsync(recordId);
+    Snackbar.Add("Medicinski zapis je obrisan.", Severity.Success);
+
+    animal = await AnimalService.GetDetailsAsync(Id);
+    StateHasChanged();
+}
+```
+
+### Gumb uz svaki zapis
+
+```razor
+<MudButton Variant="Variant.Outlined"
+           Color="Color.Error"
+           StartIcon="@Icons.Material.Filled.Delete"
+           OnClick="@(() => DeleteRecordAsync(record.Id))">
+    Obriši
+</MudButton>
+```
+
+<InfoBox type="warning" title="Prije pravog brisanja dodajte potvrdu">
+  Ako je u prethodnom modulu već uveden `MudDialog` za potvrdu brisanja, ovdje ga obavezno ponovno iskoristi. Medicinski zapis ne bi se smio obrisati jednim slučajnim klikom.
+</InfoBox>
+
+---
+
+## Validacija modela
+
+Ako želiš učenicima pokazati bolji pristup, u model možeš dodati DataAnnotations atribute.
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+public class MedicalRecord
+{
+    public int Id { get; set; }
+
+    public int AnimalId { get; set; }
+    public Animal? Animal { get; set; }
+
+    [Required]
+    public DateTime RecordDate { get; set; } = DateTime.Today;
+
+    [Required]
+    [StringLength(100)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(1000)]
+    public string Description { get; set; } = string.Empty;
+
+    [StringLength(300)]
+    public string? Therapy { get; set; }
+
+    [StringLength(100)]
+    public string? VeterinarianName { get; set; }
+
+    public bool IsResolved { get; set; }
+}
+```
+
+### Zašto je to korisno?
+
+Jer učenik vidi da forma ne služi samo za unos podataka, nego i za očuvanje kvalitete podataka u sustavu.
+
+---
+
+## Najčešće greške učenika
+
+<Checklist items={[
+  'Zaboravljen `DbSet<MedicalRecord>` u DbContextu.',
+  'Zaboravljeno navigacijsko svojstvo `MedicalRecords` u klasi `Animal`.',
+  'Nije napravljena nova migracija nakon dodavanja entiteta.',
+  '`AnimalId` nije postavljen prije spremanja novog zapisa.',
+  'Details stranica ne koristi `Include(a => a.MedicalRecords)` pa zapis izgleda kao da ne postoji.',
+  'Forma radi, ali nakon spremanja korisnik ostaje na istoj stranici bez povratne poruke.',
+  'Brisanje radi bez potvrde i može dovesti do slučajnog gubitka podataka.'
+]} />
+
+---
+
+## Što učenici trebaju vidjeti kao rezultat?
+
+Na kraju lekcije učenik bi trebao moći otvoriti detalje jedne životinje i vidjeti:
+
+- osnovne podatke
+- fotografiju
+- vrstu, pasminu i status
+- sekciju s medicinskom evidencijom
+- gumb za dodavanje novog medicinskog zapisa
+- mogućnost brisanja pogrešno unesenog zapisa
+
+To je veliki korak prema stvarnoj aplikaciji za azil.
+
+---
+
+## Mali zadaci za rad na satu
+
+1. Dodaj novi entitet `MedicalRecord` i poveži ga s klasom `Animal`.
+2. Dodaj `DbSet<MedicalRecord>` u `AzilEduDbContext`.
+3. Napravi migraciju i ažuriraj bazu.
+4. Dodaj barem dva početna medicinska zapisa za jednu životinju.
+5. Proširi details stranicu tako da prikazuje medicinsku evidenciju.
+6. Napravi stranicu za unos novog medicinskog zapisa.
+7. Dodaj mogućnost brisanja zapisa.
+
+---
+
+## Domaći zadatak
+
+1. Dodaj mogućnost uređivanja postojećeg medicinskog zapisa.
+2. Razdvoji zapise na:
+   - otvorene
+   - riješene
+3. Na details stranici prikaži broj otvorenih medicinskih problema.
+4. Dodaj vizualno jače isticanje zapisa koji još nisu riješeni.
+
+---
+
+## Sažetak lekcije
+
+<LessonSummary
+  title="Što smo napravili u ovom predavanju?"
+  items={[
+    'Uveli smo novi entitet `MedicalRecord` i povezali ga s postojećom tablicom `Animals`.',
+    'Nadogradili smo bazu novom migracijom.',
+    'Dodali smo servis za dohvat, unos i brisanje medicinskih zapisa.',
+    'Proširili smo details stranicu tako da prikazuje povijest pregleda i tretmana.',
+    'Dodali smo formu za unos novog medicinskog zapisa.',
+    'Pripremili smo aplikaciju za još ozbiljnije poslovne funkcionalnosti.'
+  ]}
+/>
+
+## Što slijedi?
+
+Sljedeći prirodan korak je **modul udomljenja**. Time aplikacija dobiva još jednu ključnu poslovnu funkciju: ne pratimo samo životinju i njezino zdravstveno stanje, nego i sam proces njezina odlaska iz azila.

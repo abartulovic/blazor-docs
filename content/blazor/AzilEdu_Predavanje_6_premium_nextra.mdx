@@ -1,0 +1,782 @@
+---
+title: "AzilEdu — Predavanje 6"
+description: "Refaktor CRUD-a, servis za rad sa životinjama, potvrda brisanja i bolja validacija forme."
+---
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 6"
+  title="Refaktor CRUD-a, potvrda brisanja i bolja validacija"
+  subtitle="U ovoj lekciji uređujemo postojeći CRUD nad tablicom Animals tako da projekt postane čišći, sigurniji i lakši za nadogradnju."
+  badges={['Blazor Web App', 'EF Core', 'MudBlazor', 'Refaktor']}
+/>
+
+<InfoBox type="info" title="Što radimo u ovoj lekciji?">
+U prethodnoj lekciji omogućili smo rad nad stvarnim podacima iz baze i pokazali **create, edit i delete** nad tablicom <code>Animals</code>.
+
+Sada ne dodajemo novu veliku funkcionalnost, nego postojeći kod činimo boljim:
+
+- izdvajamo rad s bazom u **servis**
+- uvodimo **potvrdu brisanja**
+- pojačavamo **validaciju forme**
+- pojednostavljujemo stranice tako da budu lakše za čitanje i održavanje
+</InfoBox>
+
+<InfoBox type="success" title="Zašto je ovo važno?">
+Ako sav kod ostane unutar <code>.razor</code> stranica, projekt brzo postaje nepregledan. U ozbiljnijim aplikacijama logika pristupa podacima ne ostaje razbacana po UI-u, nego se organizira u zasebne klase i servise.
+</InfoBox>
+
+## Ishodi učenja
+
+Na kraju ove lekcije učenik bi trebao moći:
+
+- objasniti zašto CRUD logiku nije dobro držati samo u stranici
+- izraditi servis <code>AnimalService</code>
+- kroz servis dohvaćati, dodavati, uređivati i brisati zapise
+- dodati potvrdu prije brisanja zapisa
+- poboljšati validaciju forme za unos i uređivanje životinje
+- prepoznati razliku između UI logike i logike rada s bazom
+
+## Podsjetnik: gdje smo stali?
+
+U projektu već imamo:
+
+- model <code>Animal</code>
+- bazu i migracije
+- tablicu <code>Animals</code>
+- prikaz zapisa iz baze
+- formu za dodavanje i uređivanje
+- gumb za brisanje zapisa
+
+Problem je što se u ovakvoj fazi često dogodi sljedeće:
+
+- dohvat podataka stoji u stranici
+- spremanje podataka stoji u stranici
+- brisanje stoji u stranici
+- validacija je djelomična
+- brisanje se izvršava odmah, bez potvrde
+
+Takav kod radi, ali nije uredan.
+
+---
+
+## 1. Zašto uvodimo servis?
+
+<ConceptGrid>
+  <ConceptCard title="UI sloj">
+    <p>Stranica treba biti prvenstveno zadužena za prikaz podataka, korisničku interakciju i navigaciju.</p>
+  </ConceptCard>
+  <ConceptCard title="Servisni sloj">
+    <p>Servis obavlja rad s bazom: dohvaća, dodaje, ažurira i briše podatke.</p>
+  </ConceptCard>
+  <ConceptCard title="Prednost">
+    <p>Kod je pregledniji, lakše se testira i jednostavnije se kasnije prebacuje na API ili DTO pristup.</p>
+  </ConceptCard>
+</ConceptGrid>
+
+<InfoBox type="warning" title="Bitna napomena">
+Servis ne uvodimo zato što je to "modernije", nego zato što projekt nakon nekoliko stranica bez toga postaje neuredan i težak za održavanje.
+</InfoBox>
+
+## 2. Gdje ćemo smjestiti servis?
+
+Za ovu fazu projekta sasvim je dovoljno napraviti servis unutar **Api** projekta, u folderu npr.:
+
+```text
+AzilEdu.Api/Services/AnimalService.cs
+```
+
+Ako želiš, kasnije možeš dodati i sučelje:
+
+```text
+AzilEdu.Api/Services/IAnimalService.cs
+```
+
+U ovoj lekciji možeš i bez sučelja ako želiš pojednostaviti gradivo. Važnije je da učenici razumiju ideju izdvajanja logike nego da odmah uvode dodatnu apstrakciju.
+
+## 3. Izrada servisa AnimalService
+
+Napravimo novu klasu <code>AnimalService</code>.
+
+```csharp
+using AzilEdu.Api.Data;
+using AzilEdu.Shared.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace AzilEdu.Api.Services;
+
+public class AnimalService
+{
+    private readonly AzilEduDbContext _context;
+
+    public AnimalService(AzilEduDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<Animal>> GetAllAsync()
+    {
+        return await _context.Animals
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+    }
+
+    public async Task<Animal?> GetByIdAsync(int id)
+    {
+        return await _context.Animals.FirstOrDefaultAsync(a => a.Id == id);
+    }
+
+    public async Task AddAsync(Animal animal)
+    {
+        _context.Animals.Add(animal);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(Animal animal)
+    {
+        _context.Animals.Update(animal);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var animal = await _context.Animals.FindAsync(id);
+
+        if (animal is null)
+            return;
+
+        _context.Animals.Remove(animal);
+        await _context.SaveChangesAsync();
+    }
+}
+```
+
+<InfoBox type="info" title="Što ovdje učenici trebaju razumjeti?">
+Nije cilj da samo prepišu metode. Moraju razumjeti da je servis mjesto gdje centraliziramo rad s bazom. Stranica tada samo zatraži podatke ili pošalje zahtjev servisu.
+</InfoBox>
+
+### Objašnjenje metoda
+
+<StepGrid>
+  <StepCard title="GetAllAsync()">
+    Dohvaća sve životinje iz baze i sortira ih po imenu.
+  </StepCard>
+  <StepCard title="GetByIdAsync(int id)">
+    Dohvaća jednu životinju po identifikatoru. Koristi se kod uređivanja.
+  </StepCard>
+  <StepCard title="AddAsync(Animal animal)">
+    Dodaje novi zapis u bazu i sprema promjene.
+  </StepCard>
+  <StepCard title="UpdateAsync(Animal animal)">
+    Ažurira postojeći zapis i sprema promjene.
+  </StepCard>
+  <StepCard title="DeleteAsync(int id)">
+    Pronalazi zapis, briše ga i sprema promjene.
+  </StepCard>
+</StepGrid>
+
+## 4. Registracija servisa u Program.cs
+
+Da bi aplikacija mogla koristiti servis, treba ga registrirati u DI container.
+
+U datoteci <code>Program.cs</code> dodaj:
+
+```csharp
+using AzilEdu.Api.Services;
+```
+
+Zatim registriraj servis:
+
+```csharp
+builder.Services.AddScoped<AnimalService>();
+```
+
+Idealno mjesto je uz ostale servise, nakon registracije <code>DbContext</code>-a.
+
+```csharp
+builder.Services.AddDbContext<AzilEduDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<AnimalService>();
+```
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-6/programcs-animalservice-registration.webp"
+  alt="Registracija AnimalService servisa u Program.cs"
+  caption="Predložena slika: programcs-animalservice-registration.webp — prikaži dio Program.cs datoteke gdje se vidi registracija DbContexta i AnimalService servisa. Upload u public/images/aziledu/predavanje-6/"
+/>
+
+---
+
+## 5. Refaktor stranice za prikaz životinja
+
+Pretpostavimo da već imamo stranicu za prikaz svih životinja, npr. <code>Animals.razor</code>.
+
+Ranije je ta stranica možda direktno koristila <code>AzilEduDbContext</code>. Sada to mijenjamo tako da koristi <code>AnimalService</code>.
+
+### Staro razmišljanje
+
+- stranica direktno otvara bazu
+- stranica dohvaća podatke
+- stranica radi previše stvari odjednom
+
+### Novo razmišljanje
+
+- stranica traži podatke od servisa
+- servis radi s bazom
+- odgovornosti su jasnije odvojene
+
+### Primjer preuređene stranice Animals.razor
+
+```razor
+@page "/animals"
+@using AzilEdu.Api.Services
+@using AzilEdu.Shared.Models
+@inject AnimalService AnimalService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Životinje</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Popis životinja</MudText>
+
+<MudButton Variant="Variant.Filled"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           Href="/animals/create"
+           Class="mb-4">
+    Dodaj novu životinju
+</MudButton>
+
+@if (animals is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (!animals.Any())
+{
+    <MudAlert Severity="Severity.Info">
+        Trenutno nema unesenih životinja u bazi.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="animals" Hover="true" Striped="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Ime</MudTh>
+            <MudTh>Vrsta</MudTh>
+            <MudTh>Pasmina</MudTh>
+            <MudTh>Dob</MudTh>
+            <MudTh>Datum dolaska</MudTh>
+            <MudTh>Udomljena</MudTh>
+            <MudTh>Akcije</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Ime">@context.Name</MudTd>
+            <MudTd DataLabel="Vrsta">@context.Species</MudTd>
+            <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
+            <MudTd DataLabel="Dob">@context.Age</MudTd>
+            <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Udomljena">@(context.IsAdopted ? "Da" : "Ne")</MudTd>
+            <MudTd DataLabel="Akcije">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           OnClick="@(() => EditAnimal(context.Id))">
+                    Uredi
+                </MudButton>
+
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           OnClick="@(() => OpenDeleteDialog(context))">
+                    Obriši
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<Animal>? animals;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAnimalsAsync();
+    }
+
+    private async Task LoadAnimalsAsync()
+    {
+        animals = await AnimalService.GetAllAsync();
+    }
+
+    private void EditAnimal(int id)
+    {
+        NavigationManager.NavigateTo($"/animals/edit/{id}");
+    }
+
+    private void OpenDeleteDialog(Animal animal)
+    {
+        // Potvrdu brisanja ćemo dodati u sljedećem koraku.
+    }
+}
+```
+
+<CodePreviewSplit
+  title="MudTable prikaz životinja"
+  language="razor"
+  image="/images/aziledu/predavanje-6/previews/animal-table-refactored.webp"
+  imageAlt="Refaktorirana MudTable tablica za prikaz životinja"
+  imageCaption="Datoteka slike: animal-table-refactored.webp — prikaži tablicu sa stupcima i gumbima Uredi / Obriši. Upload u public/images/aziledu/predavanje-6/previews/"
+  code={`<MudTable Items="animals" Hover="true" Striped="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Ime</MudTh>
+        <MudTh>Vrsta</MudTh>
+        <MudTh>Pasmina</MudTh>
+        <MudTh>Dob</MudTh>
+        <MudTh>Datum dolaska</MudTh>
+        <MudTh>Udomljena</MudTh>
+        <MudTh>Akcije</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Ime">@context.Name</MudTd>
+        <MudTd DataLabel="Vrsta">@context.Species</MudTd>
+        <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
+        <MudTd DataLabel="Dob">@context.Age</MudTd>
+        <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Udomljena">@(context.IsAdopted ? "Da" : "Ne")</MudTd>
+        <MudTd DataLabel="Akcije">
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                Uredi
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small">
+                Obriši
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>`}
+/>
+
+<InfoBox type="info" title="Što je ovdje važna promjena?">
+Stranica više ne radi izravno s <code>DbContext</code>-om. Umjesto toga koristi <code>AnimalService</code>. To je glavna didaktička poruka ove lekcije.
+</InfoBox>
+
+---
+
+## 6. Potvrda brisanja prije uklanjanja zapisa
+
+Brisanje bez potvrde je loša praksa. Dovoljno je jedan pogrešan klik i zapis nestaje.
+
+Za potvrdu možemo koristiti MudBlazor dialog. U ovoj lekciji pokazat ćemo jednostavnu varijantu.
+
+### 6.1 Injektiranje dialog servisa
+
+Na vrh stranice dodaj:
+
+```razor
+@inject IDialogService DialogService
+```
+
+### 6.2 Izrada jednostavne komponente za potvrdu brisanja
+
+Napravimo komponentu npr.:
+
+```text
+Components/DeleteAnimalDialog.razor
+```
+
+Sadržaj:
+
+```razor
+@inject MudDialogInstance MudDialog
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Potvrda brisanja</MudText>
+        <MudText Class="mt-2">
+            Jeste li sigurni da želite obrisati životinju <strong>@AnimalName</strong>?
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Odustani</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Confirm">
+            Obriši
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public string AnimalName { get; set; } = string.Empty;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+}
+```
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-6/delete-dialog-example.webp"
+  alt="Primjer dijaloga za potvrdu brisanja"
+  caption="Predložena slika: delete-dialog-example.webp — prikaži mali MudDialog s pitanjem o potvrdi brisanja. Upload u public/images/aziledu/predavanje-6/"
+/>
+
+### 6.3 Pozivanje dijaloga iz stranice
+
+U stranici za prikaz životinja dopuni metodu za brisanje:
+
+```razor
+private async Task OpenDeleteDialog(Animal animal)
+{
+    var parameters = new DialogParameters
+    {
+        { nameof(DeleteAnimalDialog.AnimalName), animal.Name }
+    };
+
+    var options = new DialogOptions
+    {
+        CloseOnEscapeKey = true,
+        MaxWidth = MaxWidth.ExtraSmall,
+        FullWidth = true
+    };
+
+    var dialog = await DialogService.ShowAsync<DeleteAnimalDialog>(
+        "Potvrda brisanja",
+        parameters,
+        options);
+
+    var result = await dialog.Result;
+
+    if (!result.Canceled)
+    {
+        await AnimalService.DeleteAsync(animal.Id);
+        Snackbar.Add("Životinja je uspješno obrisana.", Severity.Success);
+        await LoadAnimalsAsync();
+    }
+}
+```
+
+<CodePreviewSplit
+  title="Potvrda brisanja kroz MudDialog"
+  language="razor"
+  image="/images/aziledu/predavanje-6/previews/delete-dialog-flow.webp"
+  imageAlt="Tijek potvrde brisanja pomoću MudDialog komponente"
+  imageCaption="Datoteka slike: delete-dialog-flow.webp — prikaži otvoren dialog i tablicu u pozadini. Upload u public/images/aziledu/predavanje-6/previews/"
+  code={`private async Task OpenDeleteDialog(Animal animal)
+{
+    var parameters = new DialogParameters
+    {
+        { nameof(DeleteAnimalDialog.AnimalName), animal.Name }
+    };
+
+    var options = new DialogOptions
+    {
+        CloseOnEscapeKey = true,
+        MaxWidth = MaxWidth.ExtraSmall,
+        FullWidth = true
+    };
+
+    var dialog = await DialogService.ShowAsync<DeleteAnimalDialog>(
+        "Potvrda brisanja",
+        parameters,
+        options);
+
+    var result = await dialog.Result;
+
+    if (!result.Canceled)
+    {
+        await AnimalService.DeleteAsync(animal.Id);
+        Snackbar.Add("Životinja je uspješno obrisana.", Severity.Success);
+        await LoadAnimalsAsync();
+    }
+}`}
+/>
+
+<InfoBox type="warning" title="Zašto ponovno učitavamo podatke nakon brisanja?">
+Zato što se popis na ekranu mora osvježiti nakon promjene u bazi. Ako to ne napravimo, korisnik može i dalje vidjeti stari zapis na ekranu dok ne osvježi stranicu.
+</InfoBox>
+
+---
+
+## 7. Poboljšanje validacije forme
+
+U prethodnoj lekciji već smo imali formu za unos ili uređivanje životinje. Sada je činimo ozbiljnijom.
+
+### 7.1 Primjer modela s DataAnnotations atributima
+
+Ako model još nema validaciju, možeš ga proširiti ovako:
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace AzilEdu.Shared.Models;
+
+public class Animal
+{
+    public int Id { get; set; }
+
+    [Required(ErrorMessage = "Ime je obavezno.")]
+    [StringLength(50, ErrorMessage = "Ime može imati najviše 50 znakova.")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vrsta je obavezna.")]
+    [StringLength(30, ErrorMessage = "Vrsta može imati najviše 30 znakova.")]
+    public string Species { get; set; } = string.Empty;
+
+    [StringLength(50, ErrorMessage = "Pasmina može imati najviše 50 znakova.")]
+    public string? Breed { get; set; }
+
+    [Range(0, 30, ErrorMessage = "Dob mora biti između 0 i 30 godina.")]
+    public int Age { get; set; }
+
+    [Required(ErrorMessage = "Datum dolaska je obavezan.")]
+    public DateTime ArrivalDate { get; set; } = DateTime.Today;
+
+    public bool IsAdopted { get; set; }
+}
+```
+
+<InfoBox type="info" title="Zašto validacija ide i u model?">
+Zato što pravila o podacima ne bi smjela živjeti samo u vizualnom dijelu forme. Model definira što je valjan podatak, a UI to pravilo samo prikazuje korisniku.
+</InfoBox>
+
+### 7.2 Primjer MudBlazor forme s validacijom
+
+```razor
+@page "/animals/create"
+@using AzilEdu.Api.Services
+@using AzilEdu.Shared.Models
+@inject AnimalService AnimalService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<EditForm Model="animal" OnValidSubmit="SaveAnimalAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <MudText Typo="Typo.h4" Class="mb-4">Dodavanje nove životinje</MudText>
+
+    <MudTextField @bind-Value="animal.Name"
+                  Label="Ime"
+                  Variant="Variant.Outlined"
+                  For="@(() => animal.Name)"
+                  Class="mb-3" />
+
+    <MudTextField @bind-Value="animal.Species"
+                  Label="Vrsta"
+                  Variant="Variant.Outlined"
+                  For="@(() => animal.Species)"
+                  Class="mb-3" />
+
+    <MudTextField @bind-Value="animal.Breed"
+                  Label="Pasmina"
+                  Variant="Variant.Outlined"
+                  For="@(() => animal.Breed)"
+                  Class="mb-3" />
+
+    <MudNumericField @bind-Value="animal.Age"
+                     Label="Dob"
+                     Variant="Variant.Outlined"
+                     For="@(() => animal.Age)"
+                     Min="0"
+                     Max="30"
+                     Class="mb-3" />
+
+    <MudDatePicker @bind-Date="animal.ArrivalDate"
+                   Label="Datum dolaska"
+                   Variant="Variant.Outlined"
+                   Class="mb-3" />
+
+    <MudCheckBox @bind-Value="animal.IsAdopted"
+                 Label="Udomljena" />
+
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton ButtonType="ButtonType.Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary">
+            Spremi
+        </MudButton>
+
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Secondary"
+                   OnClick="Cancel">
+            Odustani
+        </MudButton>
+    </MudStack>
+</EditForm>
+
+@code {
+    private Animal animal = new();
+
+    private async Task SaveAnimalAsync()
+    {
+        await AnimalService.AddAsync(animal);
+        Snackbar.Add("Nova životinja je uspješno spremljena.", Severity.Success);
+        NavigationManager.NavigateTo("/animals");
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/animals");
+    }
+}
+```
+
+<CodePreviewSplit
+  title="MudBlazor forma s boljom validacijom"
+  language="razor"
+  image="/images/aziledu/predavanje-6/previews/validated-animal-form.webp"
+  imageAlt="Forma za unos životinje s validacijom"
+  imageCaption="Datoteka slike: validated-animal-form.webp — prikaži formu s nekoliko polja i validacijskom porukom. Upload u public/images/aziledu/predavanje-6/previews/"
+  code={`<EditForm Model="animal" OnValidSubmit="SaveAnimalAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <MudTextField @bind-Value="animal.Name"
+                  Label="Ime"
+                  Variant="Variant.Outlined"
+                  For="@(() => animal.Name)" />
+
+    <MudTextField @bind-Value="animal.Species"
+                  Label="Vrsta"
+                  Variant="Variant.Outlined"
+                  For="@(() => animal.Species)" />
+
+    <MudNumericField @bind-Value="animal.Age"
+                     Label="Dob"
+                     Variant="Variant.Outlined"
+                     For="@(() => animal.Age)"
+                     Min="0"
+                     Max="30" />
+
+    <MudDatePicker @bind-Date="animal.ArrivalDate"
+                   Label="Datum dolaska"
+                   Variant="Variant.Outlined" />
+
+    <MudButton ButtonType="ButtonType.Submit"
+               Variant="Variant.Filled"
+               Color="Color.Primary">
+        Spremi
+    </MudButton>
+</EditForm>`}
+/>
+
+### 7.3 Uređivanje postojeće životinje preko servisa
+
+Kod uređivanja je logika vrlo slična, ali prvo dohvaćamo postojeći zapis.
+
+```razor
+@page "/animals/edit/{id:int}"
+@using AzilEdu.Api.Services
+@using AzilEdu.Shared.Models
+@inject AnimalService AnimalService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<EditForm Model="animal" OnValidSubmit="UpdateAnimalAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- Ovdje ide ista ili vrlo slična forma kao kod dodavanja -->
+</EditForm>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Animal animal = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await AnimalService.GetByIdAsync(Id);
+
+        if (result is null)
+        {
+            Snackbar.Add("Tražena životinja nije pronađena.", Severity.Error);
+            NavigationManager.NavigateTo("/animals");
+            return;
+        }
+
+        animal = result;
+    }
+
+    private async Task UpdateAnimalAsync()
+    {
+        await AnimalService.UpdateAsync(animal);
+        Snackbar.Add("Podaci o životinji su uspješno ažurirani.", Severity.Success);
+        NavigationManager.NavigateTo("/animals");
+    }
+}
+```
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-6/edit-animal-form.webp"
+  alt="Forma za uređivanje postojeće životinje"
+  caption="Predložena slika: edit-animal-form.webp — prikaži formu za uređivanje s već popunjenim podacima. Upload u public/images/aziledu/predavanje-6/"
+/>
+
+---
+
+## 8. Što smo postigli ovim refaktorom?
+
+<LessonSummary>
+  <ul>
+    <li>Rad s bazom izdvojili smo u <strong>AnimalService</strong>.</li>
+    <li>Stranice su postale čišće i preglednije.</li>
+    <li>Brisanje više nije opasno jer postoji potvrda.</li>
+    <li>Forma je dobila bolju validaciju i smislenije poruke.</li>
+    <li>Projekt je sada mnogo spremniji za daljnju nadogradnju.</li>
+  </ul>
+</LessonSummary>
+
+## 9. Najčešće greške učenika
+
+<Checklist>
+  <li>Servis su napravili, ali ga nisu registrirali u <code>Program.cs</code>.</li>
+  <li>Na stranici su i dalje ostavili stari kod koji direktno koristi <code>DbContext</code>.</li>
+  <li>Nakon brisanja nisu ponovno učitali podatke.</li>
+  <li>Za <code>EditForm</code> nisu dodali <code>DataAnnotationsValidator</code>.</li>
+  <li>Koriste <code>OnClick</code> umjesto <code>OnValidSubmit</code> za spremanje forme.</li>
+  <li>Kod uređivanja nisu provjerili što se događa ako zapis ne postoji.</li>
+</Checklist>
+
+## 10. Vježba na satu
+
+1. Napravi klasu <code>AnimalService</code>.
+2. Registriraj servis u <code>Program.cs</code>.
+3. Refaktoriraj stranicu za prikaz životinja tako da koristi servis.
+4. Dodaj MudDialog potvrdu prije brisanja.
+5. Poboljšaj validaciju modela <code>Animal</code>.
+6. Provjeri rade li:
+   - dodavanje
+   - uređivanje
+   - brisanje
+   - osvježavanje popisa nakon promjene
+
+## 11. Domaći zadatak
+
+<InfoBox type="success" title="Zadatak za samostalni rad">
+Nadogradi postojeći CRUD tako da:
+
+- dodaš polje <code>Description</code> u model <code>Animal</code>
+- napraviš novu migraciju
+- prikažeš opis u formi i po želji u tablici
+- dodaš validaciju da opis može imati najviše 300 znakova
+</InfoBox>
+
+To je dobar zadatak jer učenik mora razumjeti cijeli tok:
+
+- promjena modela
+- migracija baze
+- promjena forme
+- promjena prikaza
+- spremanje i ažuriranje podataka
+
+## 12. Zaključak
+
+U ovoj lekciji nismo dodali novu veliku domensku funkcionalnost, ali smo projekt učinili znatno kvalitetnijim.
+
+To je važna poruka za učenike: razvoj aplikacije nije samo stalno dodavanje novih ekrana, nego i **uređivanje, refaktoriranje i poboljšavanje postojećeg koda**.
+
+U sljedećoj lekciji možemo prirodno nastaviti s jednom od ove dvije opcije:
+
+- detaljni prikaz pojedine životinje
+- filtriranje, pretraživanje i sortiranje popisa životinja
+
+Obje opcije imaju smisla, ali nakon ove lekcije projekt je napokon dovoljno uređen da ga možemo širiti bez kaosa.

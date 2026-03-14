@@ -1,0 +1,594 @@
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 3"
+  title="Prva stvarna stranica projekta: prikaz životinja"
+  subtitle="U ovoj lekciji učenici prvi put grade stvarni funkcionalni dio iste aplikacije. Upoznaju model Animal, pripremaju probne podatke, izrađuju stranicu za prikaz i koriste MudBlazor tablicu za pregled životinja u azilu."
+  badges={["Blazor Web App", "MudBlazor", "Isti projekt kroz sve lekcije", "Početni do srednji nivo"]}
+/>
+
+<InfoBox type="info" title="Što je cilj ove lekcije?">
+  Nakon prve lekcije, u kojoj su učenici upoznali strukturu rješenja, i druge lekcije, u kojoj su uredili izgled aplikacije uz MudBlazor, sada prelazimo na <strong>prvi stvarni sadržaj aplikacije</strong>. To znači da više ne radimo samo okvir i izgled, nego gradimo stranicu koja prikazuje stvarne podatke o životinjama u azilu.
+</InfoBox>
+
+<ConceptGrid>
+  <ConceptCard title="Što gradimo danas?">
+    Stranicu <strong>Životinje</strong> koja prikazuje popis životinja u azilu.
+  </ConceptCard>
+  <ConceptCard title="Što učenici uče?">
+    Kako model, stranica, testni podaci i UI zajedno čine jednu funkcionalnu cjelinu.
+  </ConceptCard>
+  <ConceptCard title="Zašto je ova lekcija važna?">
+    Zato što projekt prvi put prestaje biti samo kostur i postaje stvarna aplikacija.
+  </ConceptCard>
+</ConceptGrid>
+
+## Ishodi učenja
+
+Na kraju ove lekcije učenik bi trebao moći:
+
+- objasniti čemu služi model `Animal`
+- razlikovati model podataka od korisničkog sučelja
+- dodati probne podatke u projekt
+- izraditi Blazor stranicu za prikaz popisa životinja
+- koristiti `MudTable` za pregled podataka
+- povezati novu stranicu s navigacijom aplikacije
+- razumjeti zašto sve radimo unutar istog projekta kroz više lekcija
+
+---
+
+## 1. Gdje smo stali i što sada nadograđujemo
+
+U prethodnim lekcijama učenici su:
+
+1. otvorili i razumjeli strukturu rješenja (`App`, `Api`, `Shared`)
+2. postavili osnovni izgled aplikacije
+3. upoznali MudBlazor komponente i uredili navigaciju
+
+To znači da sada već imaju:
+
+- projekt koji se pokreće
+- osnovni layout
+- navigaciju
+- MudBlazor stil i komponente
+
+Ali još nemaju <strong>pravu domensku funkcionalnost</strong>.
+
+Ovom lekcijom prvi put uvodimo sadržaj koji pripada stvarnom radu azila.
+
+<InfoBox type="success" title="Važna ideja cijelog kursa">
+  Ne izrađujemo svako predavanje kao poseban mali projekt. Gradimo <strong>jedan isti AzilEdu projekt</strong> kroz cijeli niz lekcija. Zbog toga je važno da učenici uvijek razumiju kako se novi dio nadovezuje na ono što je već napravljeno.
+</InfoBox>
+
+---
+
+## 2. Što je model i zašto nam sada treba
+
+Prije nego išta prikažemo na ekranu, moramo znati <strong>što točno prikazujemo</strong>.
+
+Ako želimo prikazati životinje u azilu, moramo definirati koje informacije o svakoj životinji postoje u aplikaciji. To radimo pomoću modela.
+
+### Što je model?
+
+Model je klasa koja opisuje neki pojam iz stvarnog sustava.
+
+U našem slučaju pojam je:
+
+- životinja u azilu
+
+To znači da model može sadržavati podatke kao što su:
+
+- identifikator
+- ime životinje
+- vrsta
+- pasmina
+- starost
+- datum dolaska
+- status udomljenja
+
+<InfoBox type="warning" title="Česta pogreška učenika">
+  Učenici često misle da je stranica isto što i model. To nije točno.
+  <br /><br />
+  <strong>Model</strong> opisuje podatke.<br />
+  <strong>Stranica</strong> prikazuje te podatke korisniku.<br />
+  <strong>Komponenta</strong> pomaže da se ti podaci prikažu uredno i pregledno.
+</InfoBox>
+
+---
+
+## 3. Gdje ćemo smjestiti model `Animal`
+
+U ovom projektu koristimo više projekata unutar istog rješenja. Zato trebamo razmisliti gdje model treba biti smješten.
+
+Budući da će podatke o životinji trebati i korisnički dio aplikacije i eventualno API dio, model ima smisla držati u projektu koji je zajednički.
+
+Najčešće će to biti:
+
+```text
+Shared/Models/Animal.cs
+```
+
+Ako u tvojoj postojećoj strukturi već postoji drugi folder za zajedničke modele, prilagodi putanju toj organizaciji. Važno je da učenici razumiju <strong>zašto</strong> model ide u zajednički dio projekta.
+
+### Zašto u `Shared`?
+
+Zato što isti model može trebati:
+
+- Blazor aplikaciji za prikaz
+- API dijelu za slanje podataka
+- kasnije i drugim dijelovima projekta
+
+To smanjuje dupliranje i čini projekt urednijim.
+
+---
+
+## 4. Izrada modela `Animal`
+
+Sada izrađujemo osnovnu klasu koja opisuje jednu životinju u azilu.
+
+```csharp
+namespace AzilEdu.Shared.Models;
+
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Species { get; set; } = string.Empty;
+    public string Breed { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public bool IsAdopted { get; set; }
+}
+```
+
+### Objašnjenje svojstava
+
+- `Id` – jedinstveni identifikator životinje
+- `Name` – ime životinje
+- `Species` – vrsta, npr. pas ili mačka
+- `Breed` – pasmina
+- `Age` – starost u godinama
+- `ArrivalDate` – datum dolaska u azil
+- `IsAdopted` – označava je li životinja udomljena
+
+<InfoBox type="info" title="Zašto odmah koristimo više svojstava?">
+  Mogli bismo početi i s manjim brojem polja, ali ovdje je korisno da učenici odmah vide kako jedan model iz stvarnog sustava obično sadrži više povezanih informacija. Tako bolje razumiju smisao aplikacije i lakše kasnije prelaze na unos, uređivanje i spremanje podataka.
+</InfoBox>
+
+### Slika koju možeš naknadno dodati
+
+**Opis slike:** prikaz foldera `Shared/Models` i otvorene datoteke `Animal.cs` u Visual Studio okruženju.  
+**Predloženo ime datoteke:** `animal-model-location.webp`  
+**Upload lokacija:** `/images/aziledu/predavanje-3/animal-model-location.webp`
+
+---
+
+## 5. Priprema probnih podataka
+
+U ovoj fazi još ne radimo s bazom podataka niti s API dohvatom. To dolazi kasnije. Sada želimo da učenici prvo razumiju kako se podaci <strong>prikazuju</strong>.
+
+Zato ćemo privremeno napraviti listu probnih podataka direktno na stranici.
+
+To je dobar pristup jer:
+
+- učenici vide rezultat odmah
+- nema dodatnog opterećenja bazom i API pozivima
+- lakše se fokusiraju na model i prikaz
+
+### Primjer probnih podataka
+
+```csharp
+private List<Animal> animals = new()
+{
+    new Animal
+    {
+        Id = 1,
+        Name = "Luna",
+        Species = "Pas",
+        Breed = "Labrador",
+        Age = 3,
+        ArrivalDate = new DateTime(2025, 10, 12),
+        IsAdopted = false
+    },
+    new Animal
+    {
+        Id = 2,
+        Name = "Maza",
+        Species = "Mačka",
+        Breed = "Domaća kratkodlaka",
+        Age = 2,
+        ArrivalDate = new DateTime(2025, 11, 5),
+        IsAdopted = true
+    },
+    new Animal
+    {
+        Id = 3,
+        Name = "Rex",
+        Species = "Pas",
+        Breed = "Njemački ovčar",
+        Age = 5,
+        ArrivalDate = new DateTime(2026, 1, 20),
+        IsAdopted = false
+    }
+};
+```
+
+<InfoBox type="warning" title="Zašto ovo nije trajno rješenje?">
+  Ovakav način spremanja podataka dobar je samo za učenje i početni prikaz. Kasnije će se podaci dohvaćati iz baze ili preko API-ja. Sada to namjerno odgađamo kako bi učenici najprije razumjeli temeljnu logiku prikaza podataka.
+</InfoBox>
+
+### Slika koju možeš naknadno dodati
+
+**Opis slike:** stranica ili komponenta u kojoj se vidi lokalna lista `animals` s tri probna zapisa.  
+**Predloženo ime datoteke:** `sample-data-list.webp`  
+**Upload lokacija:** `/images/aziledu/predavanje-3/sample-data-list.webp`
+
+---
+
+## 6. Izrada nove stranice za prikaz životinja
+
+Sada trebamo napraviti novu Blazor stranicu koja će prikazivati popis životinja.
+
+Primjer putanje može biti:
+
+```text
+Components/Pages/Animals.razor
+```
+
+Ako u projektu koristiš nešto drukčiju organizaciju stranica, zadrži logiku koju već imate. Najvažnije je da stranica bude dio iste aplikacije i da je učenici mogu lako pronaći.
+
+### Osnovni početak stranice
+
+```razor
+@page "/animals"
+@using AzilEdu.Shared.Models
+
+<PageTitle>Životinje</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Popis životinja</MudText>
+```
+
+### Što ovdje radimo?
+
+- `@page "/animals"` određuje URL stranice
+- `@using AzilEdu.Shared.Models` omogućuje korištenje modela `Animal`
+- `PageTitle` mijenja naslov kartice preglednika
+- `MudText` prikazuje naslov stranice koristeći MudBlazor tipografiju
+
+---
+
+## 7. Prikaz podataka pomoću `MudTable`
+
+Sada dolazimo do dijela gdje MudBlazor stvarno pokazuje svoju vrijednost. Želimo uredno prikazati više zapisa, a tablica je za to vrlo dobar početni izbor.
+
+Kod tablice će imati <strong>preview s desne strane</strong> tek kada dodaš screenshot. Za sada ostavljamo točno opisano mjesto slike.
+
+<CodePreviewSplit
+  title="Osnovni prikaz popisa životinja u MudTable komponenti"
+  language="razor"
+  image="/images/aziledu/predavanje-3/previews/mudtable-animals-basic.webp"
+  imageAlt="Pregled osnovne MudTable tablice s popisom životinja"
+  imageCaption="Dodaj screenshot u: /images/aziledu/predavanje-3/previews/mudtable-animals-basic.webp"
+  code={`<MudTable Items="@animals" Hover="true" Striped="true" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Ime</MudTh>
+        <MudTh>Vrsta</MudTh>
+        <MudTh>Pasmina</MudTh>
+        <MudTh>Starost</MudTh>
+        <MudTh>Datum dolaska</MudTh>
+        <MudTh>Status</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Ime">@context.Name</MudTd>
+        <MudTd DataLabel="Vrsta">@context.Species</MudTd>
+        <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
+        <MudTd DataLabel="Starost">@context.Age</MudTd>
+        <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Status">
+            @(context.IsAdopted ? "Udomljena" : "U azilu")
+        </MudTd>
+    </RowTemplate>
+</MudTable>`}
+/>
+
+### Objašnjenje tablice
+
+- `Items="@animals"` govori tablici da koristi listu `animals`
+- `HeaderContent` definira zaglavlje tablice
+- `RowTemplate` opisuje kako izgleda svaki redak
+- `@context` predstavlja jedan objekt iz liste
+
+### Zašto je `MudTable` dobar izbor?
+
+Zato što učenici odmah vide:
+
+- kako više objekata iz liste postaje više redaka u tablici
+- kako se svako svojstvo modela može prikazati u posebnom stupcu
+- kako MudBlazor omogućuje pregledan i uredan prikaz bez puno dodatnog CSS-a
+
+<InfoBox type="info" title="Što znači @context?">
+  U `RowTemplate` dijelu `@context` predstavlja trenutačni objekt koji se obrađuje. Budući da tablica prolazi kroz listu `animals`, svaki red koristi podatke jedne životinje. Zato `@context.Name` prikazuje ime trenutačne životinje, `@context.Species` vrstu i tako dalje.
+</InfoBox>
+
+---
+
+## 8. Cijela početna verzija stranice `Animals.razor`
+
+Učenicima je korisno pokazati i cijeli primjer na jednom mjestu, kako bi vidjeli odnos između `@page`, using direktive, lokalnih podataka i tablice.
+
+```razor
+@page "/animals"
+@using AzilEdu.Shared.Models
+
+<PageTitle>Životinje</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Popis životinja</MudText>
+
+<MudTable Items="@animals" Hover="true" Striped="true" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Ime</MudTh>
+        <MudTh>Vrsta</MudTh>
+        <MudTh>Pasmina</MudTh>
+        <MudTh>Starost</MudTh>
+        <MudTh>Datum dolaska</MudTh>
+        <MudTh>Status</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Ime">@context.Name</MudTd>
+        <MudTd DataLabel="Vrsta">@context.Species</MudTd>
+        <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
+        <MudTd DataLabel="Starost">@context.Age</MudTd>
+        <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Status">
+            @(context.IsAdopted ? "Udomljena" : "U azilu")
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<Animal> animals = new()
+    {
+        new Animal
+        {
+            Id = 1,
+            Name = "Luna",
+            Species = "Pas",
+            Breed = "Labrador",
+            Age = 3,
+            ArrivalDate = new DateTime(2025, 10, 12),
+            IsAdopted = false
+        },
+        new Animal
+        {
+            Id = 2,
+            Name = "Maza",
+            Species = "Mačka",
+            Breed = "Domaća kratkodlaka",
+            Age = 2,
+            ArrivalDate = new DateTime(2025, 11, 5),
+            IsAdopted = true
+        },
+        new Animal
+        {
+            Id = 3,
+            Name = "Rex",
+            Species = "Pas",
+            Breed = "Njemački ovčar",
+            Age = 5,
+            ArrivalDate = new DateTime(2026, 1, 20),
+            IsAdopted = false
+        }
+    };
+}
+```
+
+### Slika koju možeš naknadno dodati
+
+**Opis slike:** gotova stranica `Animals` s vidljivom MudBlazor tablicom i tri životinje.  
+**Predloženo ime datoteke:** `animals-page-full.webp`  
+**Upload lokacija:** `/images/aziledu/predavanje-3/animals-page-full.webp`
+
+---
+
+## 9. Malo bolje isticanje statusa uz `MudChip`
+
+Kada učenici vide osnovnu tablicu, dobro je pokazati kako se mali detalji u sučelju mogu vizualno poboljšati. Jedan dobar primjer je status udomljenja.
+
+Umjesto običnog teksta, možemo koristiti `MudChip`.
+
+<CodePreviewSplit
+  title="Vizualno isticanje statusa pomoću MudChip komponente"
+  language="razor"
+  image="/images/aziledu/predavanje-3/previews/mudchip-adoption-status.webp"
+  imageAlt="Prikaz statusa životinje kroz MudChip komponente"
+  imageCaption="Dodaj screenshot u: /images/aziledu/predavanje-3/previews/mudchip-adoption-status.webp"
+  code={`<MudTd DataLabel="Status">
+    @if (context.IsAdopted)
+    {
+        <MudChip Color="Color.Success" Variant="Variant.Filled">
+            Udomljena
+        </MudChip>
+    }
+    else
+    {
+        <MudChip Color="Color.Warning" Variant="Variant.Filled">
+            U azilu
+        </MudChip>
+    }
+</MudTd>`}
+/>
+
+### Zašto je ovo korisno?
+
+Zato što učenici vide da komponente nisu samo "ukras", nego pomažu korisniku da brže razumije stanje podataka. Zelena oznaka odmah sugerira pozitivan status, dok druga boja jasno razlikuje životinje koje još čekaju udomljenje.
+
+<InfoBox type="success" title="Dobra praksa u UI-u">
+  Kada je neki podatak važan, korisno ga je vizualno istaknuti. U ovom slučaju status udomljenja je važna informacija i zato ga ima smisla prikazati upečatljivije od običnog teksta.
+</InfoBox>
+
+---
+
+## 10. Dodavanje stranice u navigaciju
+
+Nova stranica nije korisna ako do nje korisnik ne može lako doći. Zato je trebamo dodati u navigaciju aplikacije.
+
+Ako koristiš `NavMenu` ili neku drugu navigacijsku komponentu koju ste postavili u prethodnoj lekciji, dodaj novu stavku za stranicu `Animals`.
+
+Primjer:
+
+```razor
+<MudNavLink Href="/animals" Icon="@Icons.Material.Filled.Pets">
+    Životinje
+</MudNavLink>
+```
+
+### Objašnjenje
+
+- `Href="/animals"` vodi na novu stranicu
+- ikona `Pets` daje smislen vizualni znak
+- tekst `Životinje` pomaže korisniku da odmah razumije kamo link vodi
+
+### Slika koju možeš naknadno dodati
+
+**Opis slike:** otvoren `NavMenu` ili layout gdje se vidi nova stavka "Životinje" s ikonom.  
+**Predloženo ime datoteke:** `navigation-animals-link.webp`  
+**Upload lokacija:** `/images/aziledu/predavanje-3/navigation-animals-link.webp`
+
+---
+
+## 11. Kako objasniti učenicima odnos između svih dijelova
+
+U ovoj lekciji je jako važno da učenici ne vide sve kao niz odvojenih komadića koda, nego kao jednu cjelinu.
+
+Zato im treba jasno reći:
+
+1. model `Animal` opisuje jednu životinju
+2. lista `animals` sadrži više životinja
+3. stranica `Animals.razor` prikazuje tu listu
+4. `MudTable` svaku životinju prikazuje kao jedan redak
+5. navigacija omogućuje korisniku da dođe do te stranice
+
+To je prva ozbiljna lekcija u kojoj učenici mogu osjetiti da grade stvarnu aplikaciju.
+
+<InfoBox type="info" title="Važna pedagoška napomena">
+  Ako učenici samo kopiraju kod, lako izgube sliku cjeline. Zato nakon svakog većeg koraka vrijedi zaustaviti rad i usmeno provjeriti razumiju li: što smo napravili, gdje smo to napravili i zašto je taj dio potreban u projektu.
+</InfoBox>
+
+---
+
+## 12. Moguće greške i problemi
+
+### Problem 1: Stranica se ne prikazuje
+
+Provjeri:
+
+- postoji li `@page "/animals"`
+- je li datoteka spremljena
+- vodi li navigacija na točnu putanju
+
+### Problem 2: `Animal` nije prepoznat
+
+Provjeri:
+
+- je li dodan `@using AzilEdu.Shared.Models`
+- je li model stvarno u projektu `Shared`
+- je li namespace točan
+
+### Problem 3: Tablica je prazna
+
+Provjeri:
+
+- postoji li lista `animals`
+- sadrži li podatke
+- je li `Items="@animals"` ispravno napisano
+
+### Problem 4: Datum ili status izgledaju čudno
+
+Provjeri:
+
+- koristi li se ispravno `ToShortDateString()`
+- je li logika za `IsAdopted` dobro napisana
+
+### Problem 5: Navigacijski link postoji, ali ne radi
+
+Provjeri:
+
+- odgovara li `Href` stvarnoj `@page` putanji
+- je li link dodan u pravu navigacijsku komponentu
+
+---
+
+## 13. Što učenici trebaju napraviti samostalno na satu
+
+<Checklist
+  items={[
+    'Izraditi klasu Animal sa svim osnovnim svojstvima.',
+    'Smjestiti model u zajednički dio projekta.',
+    'Napraviti novu stranicu Animals.razor.',
+    'Dodati najmanje tri probne životinje u listu.',
+    'Prikazati podatke u MudTable komponenti.',
+    'Istaknuti status pomoću MudChip komponente.',
+    'Dodati poveznicu na novu stranicu u navigaciju.',
+    'Pokrenuti aplikaciju i provjeriti radi li sve bez greške.'
+  ]}
+/>
+
+---
+
+## 14. Dodatni zadaci za jače učenike
+
+Učenici koji prije završe mogu dobiti jedan ili više dodatnih zadataka:
+
+- dodati još jedno svojstvo, npr. `Gender`
+- prikazati broj svih životinja na vrhu stranice
+- odvojiti udomljene i neudomljene životinje po boji ili oznaci
+- dodati gumb `Detalji` koji za sada ne mora još ništa raditi
+- proširiti tablicu novim stupcem po vlastitom izboru
+
+To pomaže diferencijaciji rada u razredu bez razbijanja glavne strukture lekcije.
+
+---
+
+## 15. Domaći rad
+
+Za domaći zadatak učenici mogu:
+
+1. dodati još najmanje tri nove životinje u listu
+2. proširiti model s još jednim smislenim svojstvom
+3. urediti prikaz tako da tablica bude još preglednija
+4. pripremiti ideju koje bi funkcionalnosti stranica `Životinje` trebala imati u budućnosti
+
+Cilj domaćeg nije samo prepisivanje, nego razmišljanje o tome kako se aplikacija razvija dalje.
+
+---
+
+## 16. Najvažnije za zapamtiti
+
+<LessonSummary
+  title="Sažetak lekcije"
+  points={[
+    'Prvi put smo izradili stvarnu domensku stranicu unutar istog AzilEdu projekta.',
+    'Model Animal služi za opis podataka o jednoj životinji.',
+    'Probni podaci su dobar početni korak prije rada s bazom i API-jem.',
+    'MudTable omogućuje pregledan prikaz više zapisa.',
+    'MudChip pomaže da važan status bude lakše uočljiv.',
+    'Navigacija mora pratiti razvoj projekta kako bi korisnik mogao pristupiti novim stranicama.'
+  ]}
+/>
+
+---
+
+## 17. Najava sljedeće lekcije
+
+U sljedećem predavanju možemo prirodno nastaviti na ovaj rad na dva moguća načina:
+
+- ili uvodimo <strong>detaljni prikaz jedne životinje</strong>
+- ili uvodimo <strong>unos nove životinje kroz formu</strong>
+
+Oba smjera imaju smisla, ali najčešće je dobar sljedeći korak napraviti <strong>formu za unos</strong>, jer tako učenici prelaze s prikaza podataka na unos i validaciju.
+
+<InfoBox type="success" title="Glavna poruka ove lekcije">
+  Ovom lekcijom učenici prvi put vide da se isti projekt postupno pretvara u stvarnu aplikaciju. To je prijelaz iz faze "postavili smo okvir" u fazu "aplikacija već radi nešto konkretno".
+</InfoBox>

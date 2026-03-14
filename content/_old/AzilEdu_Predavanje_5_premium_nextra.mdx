@@ -1,0 +1,847 @@
+---
+title: "AzilEdu — Predavanje 5"
+description: "Unos nove životinje kroz formu i spremanje podataka u bazu"
+---
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 5"
+  title="Unos nove životinje kroz formu i spremanje u bazu"
+  subtitle="U ovoj lekciji prelazimo s prikaza i pripreme baze na prvi stvarni unos podataka. Učenici izrađuju stranicu za dodavanje nove životinje, povezuju formu s modelom i spremaju podatke u bazu koristeći Entity Framework Core."
+  badges={["Blazor Web App", "MudBlazor", "EF Core", "SQLite"]}
+/>
+
+<InfoBox type="success" title="Cilj predavanja">
+Do kraja ove lekcije učenici trebaju razumjeti kako nastaje **forma za unos**, kako se podaci iz forme prenose u objekt, kako se taj objekt sprema u bazu i zašto nakon spremanja treba korisniku dati jasnu povratnu informaciju.
+</InfoBox>
+
+## Gdje smo stali?
+
+U prethodnoj lekciji:
+
+- pripremili smo bazu
+- dodali **Entity Framework Core**
+- izradili `AzilEduDbContext`
+- postavili `DbSet<Animal>`
+- definirali connection string
+- napravili migraciju i stvorili bazu
+
+To znači da naš projekt više nije samo vizualni prikaz i rad s probnim podacima. Sada imamo temelje za **pravu pohranu podataka**.
+
+## Što radimo danas?
+
+U ovoj lekciji izrađujemo **prvu stvarnu funkcionalnost aplikacije**:
+
+1. dodajemo stranicu za unos nove životinje
+2. izrađujemo formu s MudBlazor komponentama
+3. povezujemo polja forme s modelom
+4. ubacujemo `DbContext`
+5. spremamo novu životinju u bazu
+6. prikazujemo poruku o uspjehu ili grešci
+7. po potrebi preusmjeravamo korisnika na popis životinja
+
+<ConceptGrid>
+  <ConceptCard title="Forma" icon="edit">
+    Forma je dio aplikacije u kojem korisnik unosi podatke. U našem slučaju to su podaci o novoj životinji u azilu.
+  </ConceptCard>
+  <ConceptCard title="Binding" icon="link">
+    Binding povezuje polje na ekranu s C# svojstvom u kodu. Kad korisnik nešto upiše, to se zapisuje u objekt.
+  </ConceptCard>
+  <ConceptCard title="Validacija" icon="shield-check">
+    Validacija provjerava jesu li uneseni podaci smisleni i potpuni prije spremanja u bazu.
+  </ConceptCard>
+  <ConceptCard title="Spremanje u bazu" icon="database">
+    Kad korisnik pošalje formu, podatke pretvaramo u objekt i spremamo pomoću `DbContexta` i EF Corea.
+  </ConceptCard>
+</ConceptGrid>
+
+## Zašto ne unosimo podatke direktno u tablicu?
+
+Početnici često pomisle da je aplikacija tu samo da "upiše nešto u bazu". To je prejednostavan pogled.
+
+U stvarnosti aplikacija mora:
+
+- prikazati korisniku razumljivu formu
+- ograničiti i usmjeriti unos
+- provjeriti ispravnost podataka
+- spriječiti spremanje besmislenih vrijednosti
+- spremiti podatke na kontroliran način
+
+Zato radimo formu u aplikaciji, a ne ručni unos direktno u bazu.
+
+<InfoBox type="info" title="Pedagoška napomena">
+Učenicima treba naglasiti da forma nije "ukras". Ona je kontrolirani ulaz u sustav. Ako je forma loše napravljena, korisnici unose loše podatke, a loši podaci kasnije kvare cijelu aplikaciju.
+</InfoBox>
+
+## Koji ćemo rezultat dobiti?
+
+Na kraju lekcije učenik će otvoriti stranicu **Dodaj životinju**, unijeti npr. ime, vrstu, pasminu, dob i datum dolaska, kliknuti gumb za spremanje i nova će se životinja zapisati u bazu.
+
+To je prvi trenutak u kursu kada učenik osjeća da aplikacija radi nešto stvarno korisno.
+
+---
+
+## 1. Priprema modela `Animal`
+
+Prije izrade forme provjerimo model. Ako u prethodnoj lekciji još nismo fino doradili svojstva, sada je pravi trenutak.
+
+Primjer modela:
+
+```csharp
+namespace AzilEdu.Shared.Models;
+
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Species { get; set; } = string.Empty;
+    public string? Breed { get; set; }
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; } = DateTime.Today;
+    public bool IsAdopted { get; set; }
+}
+```
+
+### Objašnjenje svojstava
+
+- `Id` — primarni ključ
+- `Name` — ime životinje
+- `Species` — vrsta, npr. pas ili mačka
+- `Breed` — pasmina, nije uvijek obavezna
+- `Age` — dob u godinama
+- `ArrivalDate` — datum dolaska u azil
+- `IsAdopted` — je li životinja već udomljena
+
+<InfoBox type="warning" title="Važno">
+Ako sada promijeniš model `Animal`, a baza je već napravljena po staroj verziji modela, moraš napraviti **novu migraciju**. Učenici trebaju shvatiti da model i baza moraju ostati usklađeni.
+</InfoBox>
+
+### Slika koju možeš kasnije dodati
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-5/model-animal-class.webp"
+  alt="Prikaz modela Animal u Shared projektu"
+  caption="Predložena slika: model-animal-class.webp — prikaži otvorenu klasu Animal u Shared projektu s jasno vidljivim svojstvima. Upload lokacija: public/images/aziledu/predavanje-5/"
+/>
+
+---
+
+## 2. Gdje ćemo smjestiti stranicu za unos?
+
+Stranicu za unos nove životinje izrađujemo u **App projektu**, jer je to korisnički dio aplikacije.
+
+Primjer putanje:
+
+```text
+AzilEdu.App/Components/Pages/Animals/AddAnimal.razor
+```
+
+Ako u projektu koristiš malo drukčiju strukturu mapa, zadrži logiku:
+
+- **Shared** sadrži modele
+- **Api** radi s bazom i backend logikom
+- **App** prikazuje korisničko sučelje
+
+<InfoBox type="info" title="Bitna logika projekta">
+Ne smijemo miješati odgovornosti. Model ne ide u App samo zato što ga tamo trenutno koristimo. Model je zajednički i zato mu je mjesto u Shared projektu.
+</InfoBox>
+
+---
+
+## 3. Izrada stranice `AddAnimal.razor`
+
+Sada izrađujemo novu Razor stranicu.
+
+Početna verzija može izgledati ovako:
+
+```razor
+@page "/animals/add"
+
+<PageTitle>Dodaj životinju</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dodaj novu životinju</MudText>
+
+<MudText Typo="Typo.body1">
+    Na ovoj stranici unosimo podatke o novoj životinji koja dolazi u azil.
+</MudText>
+```
+
+Ovdje još nema forme. Za početak samo stvaramo stranicu i provjeravamo da se ruta otvara.
+
+### Preview samo za Mud komponente
+
+<CodePreviewSplit
+  title="Osnovni naslov stranice s MudText komponentom"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/add-animal-page-header.webp"
+  imageAlt="Prikaz naslova stranice Dodaj novu životinju"
+  imageCaption="Datoteka slike: add-animal-page-header.webp. Prikaži stranicu s naslovom 'Dodaj novu životinju' i kratkim uvodnim tekstom. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`@page "/animals/add"
+
+<PageTitle>Dodaj životinju</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dodaj novu životinju</MudText>
+
+<MudText Typo="Typo.body1">
+    Na ovoj stranici unosimo podatke o novoj životinji koja dolazi u azil.
+</MudText>`}
+/>
+
+### Povezivanje stranice u navigaciju
+
+Ako želiš da korisnik do stranice dođe kroz izbornik, dodaj novu stavku u navigaciju.
+
+Primjer:
+
+```razor
+<MudNavLink Href="/animals/add" Icon="@Icons.Material.Filled.Add">Dodaj životinju</MudNavLink>
+```
+
+<CodePreviewSplit
+  title="Nova stavka u navigaciji"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/navlink-add-animal.webp"
+  imageAlt="Nova stavka Dodaj životinju u MudNavMenu navigaciji"
+  imageCaption="Datoteka slike: navlink-add-animal.webp. Prikaži navigaciju s novom stavkom Dodaj životinju. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`<MudNavLink Href="/animals/add" Icon="@Icons.Material.Filled.Add">
+    Dodaj životinju
+</MudNavLink>`}
+/>
+
+---
+
+## 4. Priprema objekta za unos
+
+Da bi forma imala kamo zapisivati podatke, trebamo pripremiti objekt.
+
+U stranici `AddAnimal.razor` dodaj:
+
+```razor
+@using AzilEdu.Shared.Models
+
+@code {
+    private Animal newAnimal = new();
+}
+```
+
+### Što to znači?
+
+- `newAnimal` je objekt u koji će se upisivati vrijednosti iz forme
+- kad korisnik upisuje ime, to ide u `newAnimal.Name`
+- kad odabere datum dolaska, to ide u `newAnimal.ArrivalDate`
+
+To je srž bindinga u Blazoru.
+
+<InfoBox type="info" title="Kako ovo objasniti učenicima?">
+Najjednostavnije je reći ovako: forma nije zasebna od koda. Svako polje na ekranu povezano je s jednim svojstvom objekta u memoriji. Korisnik zapravo "puni" objekt kroz korisničko sučelje.
+</InfoBox>
+
+---
+
+## 5. Izrada forme pomoću MudBlazora
+
+Sada dodajemo stvarna polja forme.
+
+```razor
+@page "/animals/add"
+@using AzilEdu.Shared.Models
+
+<PageTitle>Dodaj životinju</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dodaj novu životinju</MudText>
+
+<MudPaper Class="pa-4">
+    <MudTextField Label="Ime životinje" @bind-Value="newAnimal.Name" Required="true" />
+
+    <MudTextField Label="Vrsta" @bind-Value="newAnimal.Species" Required="true" Class="mt-3" />
+
+    <MudTextField Label="Pasmina" @bind-Value="newAnimal.Breed" Class="mt-3" />
+
+    <MudNumericField T="int" Label="Dob" @bind-Value="newAnimal.Age" Class="mt-3" />
+
+    <MudDatePicker Label="Datum dolaska" @bind-Date="newAnimal.ArrivalDate" Class="mt-3" />
+
+    <MudCheckBox T="bool" Label="Udomljena" @bind-Value="newAnimal.IsAdopted" Class="mt-3" />
+</MudPaper>
+
+@code {
+    private Animal newAnimal = new();
+}
+```
+
+### Što smo sada dobili?
+
+Dobili smo osnovnu formu s poljima za:
+
+- ime
+- vrstu
+- pasminu
+- dob
+- datum dolaska
+- status udomljenja
+
+### Preview MudBlazor forme
+
+<CodePreviewSplit
+  title="Osnovna forma za unos nove životinje"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/add-animal-form-basic.webp"
+  imageAlt="MudBlazor forma za unos životinje s više polja"
+  imageCaption="Datoteka slike: add-animal-form-basic.webp. Prikaži osnovnu formu s poljima unutar MudPaper komponente. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`<MudPaper Class="pa-4">
+    <MudTextField Label="Ime životinje" @bind-Value="newAnimal.Name" Required="true" />
+
+    <MudTextField Label="Vrsta" @bind-Value="newAnimal.Species" Required="true" Class="mt-3" />
+
+    <MudTextField Label="Pasmina" @bind-Value="newAnimal.Breed" Class="mt-3" />
+
+    <MudNumericField T="int" Label="Dob" @bind-Value="newAnimal.Age" Class="mt-3" />
+
+    <MudDatePicker Label="Datum dolaska" @bind-Date="newAnimal.ArrivalDate" Class="mt-3" />
+
+    <MudCheckBox T="bool" Label="Udomljena" @bind-Value="newAnimal.IsAdopted" Class="mt-3" />
+</MudPaper>`}
+/>
+
+### Objašnjenje pojedinih komponenti
+
+<StepGrid>
+  <StepCard title="MudTextField">
+    Koristi se za tekstualni unos. Dobar je za ime, vrstu i pasminu.
+  </StepCard>
+  <StepCard title="MudNumericField">
+    Koristi se kad očekujemo brojčanu vrijednost, npr. dob životinje.
+  </StepCard>
+  <StepCard title="MudDatePicker">
+    Omogućuje korisniku da odabere datum, umjesto da ga ručno tipka.
+  </StepCard>
+  <StepCard title="MudCheckBox">
+    Pogodan je za logičke vrijednosti tipa da/ne ili točno/netočno.
+  </StepCard>
+</StepGrid>
+
+---
+
+## 6. Dodavanje gumba za spremanje i odustajanje
+
+Forma bez akcija nije dovršena. Korisniku trebamo ponuditi barem:
+
+- spremanje
+- povratak ili odustajanje
+
+Primjer:
+
+```razor
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAnimal">
+        Spremi
+    </MudButton>
+
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="/animals">
+        Odustani
+    </MudButton>
+</MudStack>
+```
+
+<CodePreviewSplit
+  title="Gumbi Spremi i Odustani"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/add-animal-buttons.webp"
+  imageAlt="Prikaz gumba Spremi i Odustani ispod forme"
+  imageCaption="Datoteka slike: add-animal-buttons.webp. Prikaži dva gumba ispod forme. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAnimal">
+        Spremi
+    </MudButton>
+
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="/animals">
+        Odustani
+    </MudButton>
+</MudStack>`}
+/>
+
+### Zašto je gumb "Odustani" bitan?
+
+Početnici često misle da je dovoljan samo gumb za spremanje. To nije dobro korisničko iskustvo.
+
+Korisnik mora imati i izlaz iz forme bez spremanja.
+
+---
+
+## 7. Ubrizgavanje `DbContexta`
+
+Da bismo mogli spremiti podatke, stranica mora dobiti pristup bazi.
+
+Na vrh `AddAnimal.razor` dodaj:
+
+```razor
+@inject AzilEduDbContext DbContext
+```
+
+Ako koristiš namespace za `DbContext`, možda će trebati i:
+
+```razor
+@using AzilEdu.Api.Data
+```
+
+> Točna putanja namespacea ovisi o tome kako si organizirao projekt.
+
+<InfoBox type="warning" title="Vrlo važna napomena">
+Ako App projekt ne vidi `AzilEduDbContext`, učenik mora prvo provjeriti:
+
+1. nalazi li se `DbContext` u pravom projektu
+2. postoji li projektna referenca
+3. je li namespace točno napisan
+
+Ovo je česta točka zapinjanja.
+</InfoBox>
+
+### Slika koju možeš dodati
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-5/inject-dbcontext-addanimal.webp"
+  alt="Ubrizgavanje DbContexta u AddAnimal.razor"
+  caption="Predložena slika: inject-dbcontext-addanimal.webp — prikaži gornji dio datoteke AddAnimal.razor s direktivama @page, @using i @inject. Upload lokacija: public/images/aziledu/predavanje-5/"
+/>
+
+---
+
+## 8. Izrada metode `SaveAnimal`
+
+Sada dolazimo do ključnog dijela lekcije: spremanja podataka.
+
+Primjer metode:
+
+```razor
+@code {
+    private Animal newAnimal = new();
+
+    private async Task SaveAnimal()
+    {
+        DbContext.Animals.Add(newAnimal);
+        await DbContext.SaveChangesAsync();
+
+        newAnimal = new Animal();
+    }
+}
+```
+
+### Što ova metoda radi?
+
+- `DbContext.Animals.Add(newAnimal);`
+  - EF Core počinje pratiti novi objekt
+- `await DbContext.SaveChangesAsync();`
+  - promjene se stvarno upisuju u bazu
+- `newAnimal = new Animal();`
+  - forma se resetira nakon uspješnog spremanja
+
+### Preview spremanja
+
+<CodePreviewSplit
+  title="Osnovna metoda SaveAnimal"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/saveanimal-basic.webp"
+  imageAlt="Metoda SaveAnimal u Razor datoteci"
+  imageCaption="Datoteka slike: saveanimal-basic.webp. Prikaži @code blok s metodom SaveAnimal. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`@code {
+    private Animal newAnimal = new();
+
+    private async Task SaveAnimal()
+    {
+        DbContext.Animals.Add(newAnimal);
+        await DbContext.SaveChangesAsync();
+
+        newAnimal = new Animal();
+    }
+}`}
+/>
+
+### Ali ovo još nije dovoljno dobro
+
+Ovo radi, ali nije dovoljno sigurno i korisnički prijateljski.
+
+Nedostaje nam:
+
+- osnovna validacija
+- obrada greške
+- poruka korisniku
+- po mogućnosti preusmjeravanje na popis životinja
+
+Drugim riječima: ovo je dobar prvi korak, ali nije završena verzija.
+
+---
+
+## 9. Dodavanje osnovne validacije prije spremanja
+
+Ne želimo spremati životinju bez imena ili vrste. Zato uvodimo provjeru.
+
+Jedna jednostavna verzija može izgledati ovako:
+
+```razor
+private async Task SaveAnimal()
+{
+    if (string.IsNullOrWhiteSpace(newAnimal.Name) || string.IsNullOrWhiteSpace(newAnimal.Species))
+    {
+        return;
+    }
+
+    DbContext.Animals.Add(newAnimal);
+    await DbContext.SaveChangesAsync();
+
+    newAnimal = new Animal();
+}
+```
+
+### Što ovdje provjeravamo?
+
+- je li korisnik upisao ime
+- je li korisnik upisao vrstu
+
+Ako nije, metoda jednostavno prekida izvršavanje.
+
+<InfoBox type="warning" title="Ovo još nije idealna validacija">
+Korisnik ovdje još ne dobiva poruku zašto spremanje nije uspjelo. Dakle, validacija postoji, ali korisničko iskustvo još nije dovoljno dobro. Zato u sljedećem koraku dodajemo povratnu informaciju.
+</InfoBox>
+
+---
+
+## 10. Dodavanje poruke pomoću `ISnackbar`
+
+MudBlazor ima vrlo praktičan način za prikaz poruka korisniku.
+
+Na vrh stranice dodaj:
+
+```razor
+@inject ISnackbar Snackbar
+```
+
+Zatim doradi metodu:
+
+```razor
+private async Task SaveAnimal()
+{
+    if (string.IsNullOrWhiteSpace(newAnimal.Name) || string.IsNullOrWhiteSpace(newAnimal.Species))
+    {
+        Snackbar.Add("Ime i vrsta su obavezni.", Severity.Warning);
+        return;
+    }
+
+    DbContext.Animals.Add(newAnimal);
+    await DbContext.SaveChangesAsync();
+
+    Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+    newAnimal = new Animal();
+}
+```
+
+### Preview poruke i spremanja
+
+<CodePreviewSplit
+  title="SaveAnimal s porukama korisniku"
+  language="razor"
+  image="/images/aziledu/predavanje-5/previews/saveanimal-snackbar.webp"
+  imageAlt="Metoda SaveAnimal s ISnackbar porukama"
+  imageCaption="Datoteka slike: saveanimal-snackbar.webp. Prikaži metodu SaveAnimal s Warning i Success porukama. Upload lokacija: public/images/aziledu/predavanje-5/previews/"
+  code={`private async Task SaveAnimal()
+{
+    if (string.IsNullOrWhiteSpace(newAnimal.Name) || string.IsNullOrWhiteSpace(newAnimal.Species))
+    {
+        Snackbar.Add("Ime i vrsta su obavezni.", Severity.Warning);
+        return;
+    }
+
+    DbContext.Animals.Add(newAnimal);
+    await DbContext.SaveChangesAsync();
+
+    Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+    newAnimal = new Animal();
+}`}
+/>
+
+### Zašto je ovo dobro?
+
+Jer korisnik odmah dobiva odgovor:
+
+- ako nešto nije dobro unio → vidi upozorenje
+- ako je sve prošlo dobro → vidi potvrdu uspjeha
+
+To je puno bolje nego da se "ništa ne dogodi".
+
+---
+
+## 11. Dodavanje obrade iznimki
+
+U stvarnoj aplikaciji spremanje može pasti. Na primjer:
+
+- baza nije dostupna
+- connection string nije ispravan
+- projekt je loše konfiguriran
+- dogodila se neočekivana greška
+
+Zato metoda treba biti robusnija.
+
+```razor
+private async Task SaveAnimal()
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(newAnimal.Name) || string.IsNullOrWhiteSpace(newAnimal.Species))
+        {
+            Snackbar.Add("Ime i vrsta su obavezni.", Severity.Warning);
+            return;
+        }
+
+        DbContext.Animals.Add(newAnimal);
+        await DbContext.SaveChangesAsync();
+
+        Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+        newAnimal = new Animal();
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Došlo je do greške: {ex.Message}", Severity.Error);
+    }
+}
+```
+
+<InfoBox type="info" title="Kako ovo objasniti učenicima?">
+Ne trebaju učenici sada ulaziti u svaku vrstu iznimke. Dovoljno je da razumiju osnovnu ideju: program ne smije puknuti bez kontrole. Umjesto toga treba uhvatiti grešku i korisniku pokazati smislen odgovor.
+</InfoBox>
+
+---
+
+## 12. Preusmjeravanje nakon uspješnog spremanja
+
+Nakon spremanja možemo korisnika:
+
+- ostaviti na istoj stranici
+- očistiti formu
+- ili ga preusmjeriti na popis životinja
+
+Često je za ovakav projekt najbolje preusmjeravanje na popis.
+
+Na vrh stranice dodaj:
+
+```razor
+@inject NavigationManager Navigation
+```
+
+Zatim u metodu:
+
+```razor
+Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+Navigation.NavigateTo("/animals");
+```
+
+### Kada je bolje ostati na istoj stranici?
+
+Ako korisnik treba unijeti više životinja zaredom, onda možda ima smisla:
+
+- prikazati poruku uspjeha
+- očistiti formu
+- ostaviti korisnika na istoj stranici
+
+Dakle, ovdje nema samo jednog točnog rješenja. Treba objasniti učenicima da dizajn aplikacije ovisi i o načinu korištenja.
+
+---
+
+## 13. Cijeli primjer stranice `AddAnimal.razor`
+
+Ispod je jedna cjelovita verzija koju učenici mogu sastaviti i razumjeti.
+
+```razor
+@page "/animals/add"
+@using AzilEdu.Shared.Models
+@using AzilEdu.Api.Data
+@inject AzilEduDbContext DbContext
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Dodaj životinju</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dodaj novu životinju</MudText>
+
+<MudPaper Class="pa-4">
+    <MudTextField Label="Ime životinje" @bind-Value="newAnimal.Name" Required="true" />
+    <MudTextField Label="Vrsta" @bind-Value="newAnimal.Species" Required="true" Class="mt-3" />
+    <MudTextField Label="Pasmina" @bind-Value="newAnimal.Breed" Class="mt-3" />
+    <MudNumericField T="int" Label="Dob" @bind-Value="newAnimal.Age" Class="mt-3" />
+    <MudDatePicker Label="Datum dolaska" @bind-Date="newAnimal.ArrivalDate" Class="mt-3" />
+    <MudCheckBox T="bool" Label="Udomljena" @bind-Value="newAnimal.IsAdopted" Class="mt-3" />
+
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAnimal">
+            Spremi
+        </MudButton>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="/animals">
+            Odustani
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private Animal newAnimal = new();
+
+    private async Task SaveAnimal()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newAnimal.Name) || string.IsNullOrWhiteSpace(newAnimal.Species))
+            {
+                Snackbar.Add("Ime i vrsta su obavezni.", Severity.Warning);
+                return;
+            }
+
+            DbContext.Animals.Add(newAnimal);
+            await DbContext.SaveChangesAsync();
+
+            Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+            Navigation.NavigateTo("/animals");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Došlo je do greške: {ex.Message}", Severity.Error);
+        }
+    }
+}
+```
+
+<InfoBox type="success" title="Što učenici ovdje trebaju prepoznati?">
+Ovdje se prvi put spajaju gotovo svi važni dijelovi dosadašnjeg projekta: Razor stranica, MudBlazor komponente, model iz Shared projekta, baza iz API projekta, spremanje kroz EF Core i povratna informacija korisniku.
+</InfoBox>
+
+---
+
+## 14. Kako provjeriti radi li spremanje?
+
+Nakon što učenik klikne **Spremi**, treba provjeriti:
+
+1. pojavljuje li se poruka uspjeha
+2. preusmjerava li se stranica na `/animals`
+3. vidi li se nova životinja na popisu
+4. postoji li zapis u bazi
+
+### Slika koju možeš dodati
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-5/animal-saved-in-list.webp"
+  alt="Nova životinja vidljiva na popisu nakon spremanja"
+  caption="Predložena slika: animal-saved-in-list.webp — prikaži popis životinja nakon spremanja nove stavke, tako da se nova životinja jasno vidi u tablici ili listi. Upload lokacija: public/images/aziledu/predavanje-5/"
+/>
+
+### Dodatna provjera u SQLite pregledniku
+
+Ako koristiš alat za pregled SQLite baze, možeš otvoriti bazu i provjeriti je li zapis stvarno tamo.
+
+To je korisno jer učenik tada vidi da se promjena nije dogodila samo na ekranu nego i u samoj bazi.
+
+---
+
+## 15. Najčešće greške učenika
+
+<Checklist>
+  <li>Stranica nema ispravnu rutu pa se ne otvara.</li>
+  <li>Model `Animal` nije ispravno importan pa Razor ne prepoznaje tip.</li>
+  <li>`DbContext` nije injektiran ili namespace nije točan.</li>
+  <li>Zaboravljen je `await DbContext.SaveChangesAsync()` pa se ništa ne sprema.</li>
+  <li>Polja `Name` i `Species` ostaju prazna, ali učenik ne razumije zašto spremanje ne prolazi.</li>
+  <li>Navigacija vodi na krivu putanju nakon spremanja.</li>
+  <li>Promijenjen je model, ali nije napravljena nova migracija.</li>
+</Checklist>
+
+<InfoBox type="warning" title="Vrlo česta zabuna">
+Ako učenik doda novo svojstvo u `Animal`, npr. `Description`, i odmah pokuša spremati podatke bez nove migracije, aplikacija i baza više nisu usklađene. To je dobar trenutak da ponovno podsjetiš na logiku migracija iz prethodne lekcije.
+</InfoBox>
+
+---
+
+## 16. Vježba na satu
+
+### Zadatak 1
+
+Izradi stranicu `AddAnimal.razor` s osnovnim naslovom i formom.
+
+### Zadatak 2
+
+Dodaj sljedeća polja:
+
+- Ime životinje
+- Vrsta
+- Pasmina
+- Dob
+- Datum dolaska
+- Udomljena
+
+### Zadatak 3
+
+Dodaj gumbe:
+
+- **Spremi**
+- **Odustani**
+
+### Zadatak 4
+
+Ubrizgaj `DbContext`, `ISnackbar` i `NavigationManager`.
+
+### Zadatak 5
+
+Implementiraj `SaveAnimal()` tako da:
+
+- provjerava obavezna polja
+- sprema objekt u bazu
+- prikazuje poruku uspjeha ili greške
+- preusmjerava korisnika na popis životinja
+
+### Zadatak 6
+
+Provjeri prikazuje li se nova životinja na stranici s popisom.
+
+---
+
+## 17. Domaći zadatak
+
+Učenici trebaju proširiti formu s barem jednim dodatnim svojstvom po izboru, na primjer:
+
+- `Color`
+- `Weight`
+- `Description`
+- `Vaccinated`
+
+Zatim trebaju:
+
+1. dodati svojstvo u model `Animal`
+2. po potrebi prilagoditi formu
+3. napraviti novu migraciju
+4. ažurirati bazu
+5. testirati spremanje
+
+<InfoBox type="info" title="Zašto je ovaj domaći dobar?">
+Ovim zadatkom učenik povezuje više važnih stvari odjednom: model, formu, migracije i bazu. To je puno vrjednije od pukog prepisivanja jednog već gotovog primjera.
+</InfoBox>
+
+---
+
+## 18. Sažetak lekcije
+
+<LessonSummary
+  title="Što smo danas naučili?"
+  items={[
+    'Izradili smo stranicu za unos nove životinje.',
+    'Povezali smo polja forme s objektom newAnimal pomoću bindinga.',
+    'Koristili smo MudBlazor komponente za izradu pregledne forme.',
+    'Ubrizgali smo DbContext i spremili podatke u bazu.',
+    'Dodali smo validaciju i poruke korisniku preko Snackbar servisa.',
+    'Objasnili smo zašto nakon spremanja treba dati jasnu povratnu informaciju i po potrebi preusmjeriti korisnika.'
+  ]}
+/>
+
+## Što slijedi dalje?
+
+Logičan nastavak ove lekcije je:
+
+- prikaz stvarnih podataka iz baze na stranici s popisom životinja
+- uređivanje postojećih životinja
+- brisanje zapisa
+- detalji jedne životinje
+
+Drugim riječima, sljedećim koracima ulazimo dublje u **CRUD** dio aplikacije.

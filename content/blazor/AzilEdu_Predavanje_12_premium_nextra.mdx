@@ -1,0 +1,630 @@
+---
+title: "Predavanje 12 — Modul udomljenja"
+description: "Dodavanje modula za evidenciju udomljenja, povezivanje s životinjom i promjenu statusa nakon udomljenja."
+---
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 12"
+  title="Modul udomljenja"
+  subtitle="U ovoj lekciji gradimo jednu od najvažnijih funkcionalnosti cijele aplikacije: evidenciju udomljenja. Životinja više nije samo zapis u bazi, nego dio stvarnog poslovnog procesa azila."
+  badges={["Blazor Web App", "EF Core", "Poslovna logika", "MudBlazor"]}
+/>
+
+<InfoBox type="info" title="Zašto je ova lekcija važna?">
+  Bez modula udomljenja AzilEdu još uvijek nije potpuna aplikacija za azil. Popis životinja, statusi, fotografije i medicinska evidencija su važni, ali pravi smisao sustava dolazi tek kada možemo pratiti proces udomljenja.
+</InfoBox>
+
+## Cilj predavanja
+
+U ovoj lekciji želimo omogućiti da sustav zna:
+
+- je li životinja udomljena
+- kada je udomljena
+- tko je udomitelj
+- koji su kontakt podaci udomitelja
+- postoji li napomena uz udomljenje
+- kako nakon udomljenja automatski promijeniti status životinje
+
+Na kraju lekcije jedna životinja može imati svoj zapis o udomljenju, a aplikacija će moći razlikovati dostupne životinje od već udomljenih.
+
+---
+
+## Poslovna logika prije koda
+
+Prije nego napišemo ijedan redak koda, moramo jasno razumjeti pravila sustava.
+
+### Osnovno pravilo
+
+Jedna životinja može imati najviše jedno aktivno udomljenje.
+
+To znači:
+- ne želimo dva paralelna zapisa o udomljenju za istu životinju
+- kada se životinja udomi, njezin status više ne bi smio biti "Dostupna"
+- detalji životinje trebaju jasno pokazivati postoji li zapis o udomljenju
+
+<InfoBox type="warning" title="Ovdje prvi put uvodimo ozbiljniju poslovnu logiku">
+  Ovo više nije samo CRUD. Sada postoji pravilo sustava: kada nastane udomljenje, treba se promijeniti i stanje životinje. Upravo tu aplikacija prelazi iz školskog primjera u ozbiljniji poslovni projekt.
+</InfoBox>
+
+---
+
+## Novi entitet: `Adoption`
+
+### Predložena klasa
+
+```csharp
+public class Adoption
+{
+    public int Id { get; set; }
+
+    public int AnimalId { get; set; }
+    public Animal? Animal { get; set; }
+
+    public DateTime AdoptionDate { get; set; } = DateTime.Today;
+
+    public string AdopterFullName { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string? Address { get; set; }
+    public string? Note { get; set; }
+}
+```
+
+### Objašnjenje polja
+
+- `AnimalId` povezuje udomljenje s točno jednom životinjom
+- `AdoptionDate` označava datum udomljenja
+- `AdopterFullName` čuva ime i prezime udomitelja
+- `PhoneNumber` je važan za kontakt
+- `Email` i `Address` su dodatna polja koja mogu pomoći u evidenciji
+- `Note` služi za dodatne napomene, npr. dogovor o kasnijoj kontroli
+
+---
+
+## Povezivanje s klasom `Animal`
+
+U klasu `Animal` dodaj navigacijsko svojstvo:
+
+```csharp
+public Adoption? Adoption { get; set; }
+```
+
+### Zašto je ovdje veza jedan-prema-jedan?
+
+U ovoj fazi projekta pretpostavljamo:
+- jedna životinja ima najviše jedno udomljenje
+- kada se udomi, to je završni zapis za taj poslovni proces
+
+Kasnije bi se sustav mogao dodatno proširiti, ali za ovu aplikaciju ovo je sasvim dovoljno i didaktički čisto.
+
+---
+
+## Dodavanje `DbSet` svojstva u `AzilEduDbContext`
+
+```csharp
+public DbSet<Adoption> Adoptions => Set<Adoption>();
+```
+
+### Primjer proširenog konteksta
+
+```csharp
+public class AzilEduDbContext : DbContext
+{
+    public AzilEduDbContext(DbContextOptions<AzilEduDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Animal> Animals => Set<Animal>();
+    public DbSet<Species> Species => Set<Species>();
+    public DbSet<Breed> Breeds => Set<Breed>();
+    public DbSet<AnimalStatus> AnimalStatuses => Set<AnimalStatus>();
+    public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+    public DbSet<Adoption> Adoptions => Set<Adoption>();
+}
+```
+
+---
+
+## Fluent API konfiguracija odnosa
+
+Kako bismo jasno definirali odnos jedan-prema-jedan između `Animal` i `Adoption`, dobro je u `OnModelCreating` dodati konfiguraciju:
+
+```csharp
+modelBuilder.Entity<Animal>()
+    .HasOne(a => a.Adoption)
+    .WithOne(a => a.Animal)
+    .HasForeignKey<Adoption>(a => a.AnimalId)
+    .OnDelete(DeleteBehavior.Cascade);
+```
+
+### Zašto je to korisno?
+
+Jer učvršćuješ pravilo koje već poslovno želiš:
+- jedan zapis o udomljenju pripada jednoj životinji
+- relacija je eksplicitna i jasna
+
+---
+
+## Migracija baze
+
+Nakon dodavanja novog entiteta i relacije potrebno je napraviti novu migraciju.
+
+```powershell
+Add-Migration AddAdoptions
+Update-Database
+```
+
+![Opis slike: rezultat uspješne migracije za tablicu Adoptions. Predloženi naziv slike: efcore-addadoptions-console.webp](/images/aziledu/predavanje-12/efcore-addadoptions-console.webp)
+
+---
+
+## Servis za rad s udomljenjima
+
+### Sučelje servisa
+
+```csharp
+public interface IAdoptionService
+{
+    Task<Adoption?> GetByAnimalIdAsync(int animalId);
+    Task<bool> CreateAsync(Adoption adoption);
+    Task DeleteAsync(int adoptionId);
+}
+```
+
+### Implementacija servisa
+
+```csharp
+public class AdoptionService : IAdoptionService
+{
+    private readonly AzilEduDbContext _db;
+
+    public AdoptionService(AzilEduDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<Adoption?> GetByAnimalIdAsync(int animalId)
+    {
+        return await _db.Adoptions
+            .FirstOrDefaultAsync(a => a.AnimalId == animalId);
+    }
+
+    public async Task<bool> CreateAsync(Adoption adoption)
+    {
+        var exists = await _db.Adoptions.AnyAsync(a => a.AnimalId == adoption.AnimalId);
+        if (exists)
+            return false;
+
+        _db.Adoptions.Add(adoption);
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task DeleteAsync(int adoptionId)
+    {
+        var entity = await _db.Adoptions.FindAsync(adoptionId);
+        if (entity is null)
+            return;
+
+        _db.Adoptions.Remove(entity);
+        await _db.SaveChangesAsync();
+    }
+}
+```
+
+### Registracija servisa
+
+```csharp
+builder.Services.AddScoped<IAdoptionService, AdoptionService>();
+```
+
+---
+
+## Važno proširenje: promjena statusa životinje nakon udomljenja
+
+Ovo je najvažniji dio lekcije. Kada korisnik stvori zapis o udomljenju, status životinje treba automatski postati npr. **Udomljena**.
+
+### Zašto to radimo?
+
+Zato što podaci moraju ostati dosljedni. Ne želimo situaciju da:
+- životinja ima zapis o udomljenju
+- ali u tablici i dalje izgleda kao da je dostupna za udomljenje
+
+To bi bio loš podatkovni model i loše korisničko iskustvo.
+
+---
+
+## Nadogradnja servisa poslovnom logikom
+
+Pretpostavimo da već postoji status s nazivom `Udomljena`.
+
+### Primjer metode `CreateAsync` s promjenom statusa
+
+```csharp
+public async Task<bool> CreateAsync(Adoption adoption)
+{
+    var exists = await _db.Adoptions.AnyAsync(a => a.AnimalId == adoption.AnimalId);
+    if (exists)
+        return false;
+
+    var animal = await _db.Animals.FirstOrDefaultAsync(a => a.Id == adoption.AnimalId);
+    if (animal is null)
+        return false;
+
+    var adoptedStatus = await _db.AnimalStatuses
+        .FirstOrDefaultAsync(s => s.Name == "Udomljena");
+
+    if (adoptedStatus is null)
+        return false;
+
+    animal.AnimalStatusId = adoptedStatus.Id;
+
+    _db.Adoptions.Add(adoption);
+    await _db.SaveChangesAsync();
+    return true;
+}
+```
+
+<InfoBox type="success" title="Što učenici ovdje uče?">
+  Uče da servis ne služi samo za spremanje podataka, nego i za provođenje poslovnih pravila aplikacije.
+</InfoBox>
+
+---
+
+## Forma za novo udomljenje
+
+Najčišći pristup je napraviti zasebnu stranicu, npr.:
+
+```text
+/animals/{id}/adopt
+```
+
+### Početak Razor stranice
+
+```razor
+@page "/animals/{AnimalId:int}/adopt"
+@inject IAdoptionService AdoptionService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Udomljenje životinje</PageTitle>
+```
+
+### Kod-behind logika
+
+```razor
+@code {
+    [Parameter]
+    public int AnimalId { get; set; }
+
+    private Adoption model = new();
+
+    protected override void OnInitialized()
+    {
+        model.AnimalId = AnimalId;
+        model.AdoptionDate = DateTime.Today;
+    }
+
+    private async Task SaveAsync()
+    {
+        var success = await AdoptionService.CreateAsync(model);
+
+        if (!success)
+        {
+            Snackbar.Add("Udomljenje nije moguće spremiti. Provjeri postoji li već zapis ili status.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Udomljenje je uspješno spremljeno.", Severity.Success);
+        NavigationManager.NavigateTo($"/animals/{AnimalId}/details");
+    }
+}
+```
+
+---
+
+## MudBlazor forma za unos udomljenja
+
+<CodePreviewSplit
+  title="Forma za evidenciju udomljenja"
+  language="razor"
+  image="/images/aziledu/predavanje-12/previews/adoption-form.webp"
+  imageAlt="MudBlazor forma za unos podataka o udomljenju"
+  imageCaption="Datoteka slike: adoption-form.webp"
+  code={`<EditForm Model="model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <MudStack Spacing="2">
+        <MudDatePicker @bind-Date="model.AdoptionDate"
+                       Label="Datum udomljenja"
+                       Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="model.AdopterFullName"
+                      Label="Ime i prezime udomitelja"
+                      Variant="Variant.Outlined"
+                      Required="true" />
+
+        <MudTextField @bind-Value="model.PhoneNumber"
+                      Label="Telefon"
+                      Variant="Variant.Outlined"
+                      Required="true" />
+
+        <MudTextField @bind-Value="model.Email"
+                      Label="E-mail"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="model.Address"
+                      Label="Adresa"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="model.Note"
+                      Label="Napomena"
+                      Variant="Variant.Outlined"
+                      Lines="4" />
+
+        <MudButton ButtonType="ButtonType.Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Success">
+            Spremi udomljenje
+        </MudButton>
+    </MudStack>
+</EditForm>`}
+/>
+
+---
+
+## DataAnnotations validacija
+
+Kako bi unos bio kvalitetniji, model možeš proširiti validacijskim atributima.
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+public class Adoption
+{
+    public int Id { get; set; }
+
+    public int AnimalId { get; set; }
+    public Animal? Animal { get; set; }
+
+    [Required]
+    public DateTime AdoptionDate { get; set; } = DateTime.Today;
+
+    [Required]
+    [StringLength(100)]
+    public string AdopterFullName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(30)]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [StringLength(100)]
+    [EmailAddress]
+    public string? Email { get; set; }
+
+    [StringLength(200)]
+    public string? Address { get; set; }
+
+    [StringLength(1000)]
+    public string? Note { get; set; }
+}
+```
+
+---
+
+## Dodavanje gumba na details stranicu životinje
+
+Ako životinja još nema zapis o udomljenju, na details stranici prikaži gumb za unos.
+
+```razor
+@if (animal?.Adoption is null)
+{
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Success"
+               StartIcon="@Icons.Material.Filled.Favorite"
+               Href="@($"/animals/{animal?.Id}/adopt")">
+        Evidentiraj udomljenje
+    </MudButton>
+}
+```
+
+### Zašto je ovaj uvjet važan?
+
+Zato što ne želimo nuditi gumb za novo udomljenje ako zapis već postoji.
+
+---
+
+## Prikaz podataka o udomljenju na details stranici
+
+Kada details stranica učitava podatke, treba uključiti i `Adoption` relaciju.
+
+```csharp
+animal = await _db.Animals
+    .Include(a => a.Species)
+    .Include(a => a.Breed)
+    .Include(a => a.AnimalStatus)
+    .Include(a => a.MedicalRecords)
+    .Include(a => a.Adoption)
+    .FirstOrDefaultAsync(a => a.Id == id);
+```
+
+### Prikaz sekcije udomljenja
+
+<CodePreviewSplit
+  title="Prikaz podataka o udomljenju na details stranici"
+  language="razor"
+  image="/images/aziledu/predavanje-12/previews/details-adoption-card.webp"
+  imageAlt="Sekcija details stranice s podacima o udomljenju"
+  imageCaption="Datoteka slike: details-adoption-card.webp"
+  code={`<MudPaper Class="pa-4 mt-6">
+    <MudText Typo="Typo.h6" GutterBottom="true">Podaci o udomljenju</MudText>
+
+    @if (animal?.Adoption is null)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            Ova životinja još nema evidentirano udomljenje.
+        </MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="1">
+            <MudText><strong>Datum udomljenja:</strong> @animal.Adoption.AdoptionDate.ToShortDateString()</MudText>
+            <MudText><strong>Udomitelj:</strong> @animal.Adoption.AdopterFullName</MudText>
+            <MudText><strong>Telefon:</strong> @animal.Adoption.PhoneNumber</MudText>
+
+            @if (!string.IsNullOrWhiteSpace(animal.Adoption.Email))
+            {
+                <MudText><strong>E-mail:</strong> @animal.Adoption.Email</MudText>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(animal.Adoption.Address))
+            {
+                <MudText><strong>Adresa:</strong> @animal.Adoption.Address</MudText>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(animal.Adoption.Note))
+            {
+                <MudText><strong>Napomena:</strong> @animal.Adoption.Note</MudText>
+            }
+        </MudStack>
+    }
+</MudPaper>`}
+/>
+
+---
+
+## Prikaz udomljenih životinja u tablici
+
+Na popisu životinja sada se može dodatno naglasiti koje su udomljene.
+
+### Primjer status čipa
+
+<CodePreviewSplit
+  title="Prikaz statusa udomljenja u tablici"
+  language="razor"
+  image="/images/aziledu/predavanje-12/previews/table-adoption-chip.webp"
+  imageAlt="MudChip koji prikazuje je li životinja udomljena"
+  imageCaption="Datoteka slike: table-adoption-chip.webp"
+  code={`<MudTd DataLabel="Udomljenje">
+    @if (context.Adoption is not null)
+    {
+        <MudChip Color="Color.Success" Variant="Variant.Filled">Udomljena</MudChip>
+    }
+    else
+    {
+        <MudChip Color="Color.Default" Variant="Variant.Outlined">Nije udomljena</MudChip>
+    }
+</MudTd>`}
+/>
+
+---
+
+## Brisanje ili poništavanje udomljenja
+
+Ovdje treba biti oprezan. Ako izbrišeš zapis o udomljenju, trebaš odlučiti što će se dogoditi sa statusom životinje.
+
+### Moguća pravila
+
+1. kada se udomljenje obriše, status se vrati na `Dostupna`
+2. brisanje nije dopušteno bez dodatne potvrde administratora
+3. umjesto brisanja uvodi se “storno udomljenja”
+
+Za učenike je u ovoj fazi dovoljno pravilo broj 1.
+
+### Primjer logike za brisanje
+
+```csharp
+public async Task DeleteAsync(int adoptionId)
+{
+    var adoption = await _db.Adoptions.FirstOrDefaultAsync(a => a.Id == adoptionId);
+    if (adoption is null)
+        return;
+
+    var animal = await _db.Animals.FirstOrDefaultAsync(a => a.Id == adoption.AnimalId);
+    var availableStatus = await _db.AnimalStatuses.FirstOrDefaultAsync(s => s.Name == "Dostupna");
+
+    if (animal is not null && availableStatus is not null)
+    {
+        animal.AnimalStatusId = availableStatus.Id;
+    }
+
+    _db.Adoptions.Remove(adoption);
+    await _db.SaveChangesAsync();
+}
+```
+
+<InfoBox type="warning" title="Ovo je poslovna odluka, ne samo tehnički detalj">
+  U stvarnoj aplikaciji moraš odlučiti što znači brisanje udomljenja. Ovdje biramo najjednostavniju varijantu da bi učenici razumjeli tok podataka i poslovno pravilo.
+</InfoBox>
+
+---
+
+## Najčešće greške učenika
+
+<Checklist items={[
+  'Zaboravljeno navigacijsko svojstvo `Adoption` u klasi `Animal`.',
+  'Zaboravljen `DbSet<Adoption>` u DbContextu.',
+  'Nije definirana relacija jedan-prema-jedan pa ponašanje baze nije očekivano.',
+  'Nakon spremanja udomljenja status životinje ostaje stari.',
+  'Na details stranici nije dodan `Include(a => a.Adoption)` pa sekcija izgleda prazno.',
+  'Gumb za udomljenje prikazuje se i kada zapis već postoji.',
+  'Nije riješen scenarij kada korisnik pokuša unijeti drugo udomljenje za istu životinju.'
+]} />
+
+---
+
+## Što učenici trebaju vidjeti kao konačni rezultat?
+
+Na kraju lekcije učenik bi trebao moći:
+
+- otvoriti details stranicu životinje
+- kliknuti na gumb za evidenciju udomljenja
+- unijeti podatke o udomitelju
+- spremiti zapis u bazu
+- vidjeti da se status životinje automatski promijenio u `Udomljena`
+- na details stranici pregledati sve podatke o udomljenju
+
+To je jedna od najvažnijih poslovnih funkcionalnosti cijelog sustava.
+
+---
+
+## Zadaci za rad na satu
+
+1. Dodaj entitet `Adoption`.
+2. Poveži ga s klasom `Animal`.
+3. Nadogradi `DbContext` i napravi migraciju.
+4. Napravi servis za rad s udomljenjima.
+5. Napravi stranicu za unos podataka o udomljenju.
+6. Nakon spremanja automatski promijeni status životinje u `Udomljena`.
+7. Prikaži sekciju udomljenja na details stranici.
+
+---
+
+## Domaći zadatak
+
+1. Dodaj potvrdu prije brisanja zapisa o udomljenju.
+2. Onemogući gumb za uređivanje životinje ako je status `Udomljena`, osim ako korisnik nema posebnu ovlast.
+3. Na popisu životinja dodaj filter koji može prikazati samo udomljene životinje.
+4. Na dashboardu prikaži broj ukupno udomljenih životinja.
+
+---
+
+## Sažetak lekcije
+
+<LessonSummary
+  title="Što smo napravili u ovom predavanju?"
+  items={[
+    'Dodali smo novi entitet `Adoption` i povezali ga s tablicom `Animals`.',
+    'Uveli smo poslovno pravilo da jedna životinja može imati najviše jedno aktivno udomljenje.',
+    'Napravili smo servis za spremanje i dohvat podataka o udomljenju.',
+    'Nakon spremanja udomljenja automatski smo promijenili status životinje.',
+    'Na details stranici smo prikazali podatke o udomljenju.',
+    'Aplikacija je dobila jednu od ključnih funkcionalnosti stvarnog sustava za azil.'
+  ]}
+/>
+
+## Što slijedi?
+
+Sljedeći prirodan korak je **dashboard i statistika** ili **autentikacija i uloge**. Time aplikacija dobiva administratorski pregled stanja i počinje se pripremati za ozbiljnije korištenje.

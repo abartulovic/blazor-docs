@@ -1,0 +1,693 @@
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 8"
+  title="Relacije u bazi: Species, Breed i AnimalStatus"
+  subtitle="U ovoj lekciji proširujemo bazu tako da detalji životinje više ne ovise samo o jednoj tablici. Učenici uvode povezane tablice, strane ključeve i pripremaju projekt za pravi details prikaz u sljedećoj lekciji."
+  badges={["Blazor Web App", "EF Core", "Relacije", "SQLite"]}
+/>
+
+<InfoBox type="info" title="Zašto sada radimo relacije?">
+Do sada je aplikacija već pokazala da može prikazivati, dodavati, uređivati i brisati životinje. Međutim, ako su <code>Species</code>, <code>Breed</code> i <code>Status</code> samo običan tekst u tablici <code>Animals</code>, projekt vrlo brzo postaje neuredan.
+
+Primjer problema:
+
+- jednom učenik upiše <code>Pas</code>
+- drugi upiše <code>pas</code>
+- treći upiše <code>PAS</code>
+- netko napiše <code>Mješanac</code>, a netko <code>Mjesanac</code>
+
+Baza tada tehnički radi, ali podaci više nisu pouzdani. Zato uvodimo zasebne tablice i relacije.
+</InfoBox>
+
+## Ishodi ove lekcije
+
+Na kraju ove lekcije učenik treba moći:
+
+- objasniti zašto pomoćni podaci ne trebaju ostati običan tekst u tablici <code>Animals</code>
+- izraditi tablice <code>Species</code>, <code>Breeds</code> i <code>AnimalStatuses</code>
+- povezati tablicu <code>Animals</code> sa stranim ključevima
+- proširiti <code>DbContext</code> i napraviti novu migraciju
+- prilagoditi formu za unos i uređivanje tako da koristi padajuće izbornike
+- razumjeti da se sljedeća lekcija, detalji životinje, oslanja upravo na ove relacije
+
+---
+
+## Podsjetnik: gdje smo stali
+
+U prethodnim lekcijama napravili smo:
+
+- prikaz životinja
+- rad nad bazom umjesto testnih podataka
+- create, edit i delete
+- validaciju i osnovni refaktor u servis
+- filtriranje, pretragu i sortiranje
+
+To znači da projekt više nije samo kostur. Sada ga trebamo **urediti kao pravu aplikaciju**.
+
+<ConceptGrid>
+  <ConceptCard title="Dosadašnji model" icon="table">
+    Tablica <code>Animals</code> vjerojatno sadrži polja poput <code>Name</code>, <code>Species</code>, <code>Breed</code> i <code>Status</code> kao običan tekst.
+  </ConceptCard>
+  <ConceptCard title="Novi cilj" icon="layers">
+    Želimo da <code>Animal</code> pokazuje na povezane tablice: vrstu, pasminu i status.
+  </ConceptCard>
+  <ConceptCard title="Rezultat" icon="sparkles">
+    Dobivamo uredniju bazu, lakše forme, dosljednije podatke i bolju pripremu za details prikaz.
+  </ConceptCard>
+</ConceptGrid>
+
+---
+
+## Što ćemo točno promijeniti u modelu
+
+U ovoj lekciji uvodimo tri nove pomoćne tablice:
+
+1. <code>Species</code> — vrsta životinje, npr. pas, mačka, kunić
+2. <code>Breed</code> — pasmina, npr. labrador, perzijska mačka, mješanac
+3. <code>AnimalStatus</code> — status životinje, npr. dostupna, rezervirana, udomljena, na liječenju
+
+Nakon toga tablica <code>Animals</code> više neće spremati samo tekst, nego i identifikatore povezanih zapisa.
+
+<InfoBox type="success" title="Važna ideja ove lekcije">
+Jedna stranica u aplikaciji ne mora prikazivati podatke samo iz jedne tablice. U ozbiljnijim aplikacijama korisnik često gleda **jedan objedinjeni prikaz**, a podaci dolaze iz više povezanih tablica.
+</InfoBox>
+
+---
+
+## Logika relacija
+
+Prije koda učenici trebaju razumjeti **zašto** radimo baš ovakve veze.
+
+### 1. Species
+
+Jedna vrsta može pripadati mnogim životinjama.
+
+Primjer:
+
+- vrsta <code>Pas</code> može imati 20 različitih životinja
+- vrsta <code>Mačka</code> može imati 15 različitih životinja
+
+To znači:
+
+- jedna <code>Species</code>
+- više <code>Animals</code>
+
+### 2. Breed
+
+Jedna pasmina također može pripadati mnogim životinjama.
+
+Primjer:
+
+- više pasa mogu biti iste pasmine
+- više mačaka mogu biti iste pasmine
+
+### 3. AnimalStatus
+
+Jedan status može biti dodijeljen mnogim životinjama.
+
+Primjer:
+
+- više životinja može biti <code>Dostupna za udomljenje</code>
+- više životinja može biti <code>Na liječenju</code>
+
+### 4. Breed i Species
+
+Ako želiš uredniji model, svaka pasmina može pripadati određenoj vrsti.
+
+Primjer:
+
+- pasmina <code>Labrador</code> pripada vrsti <code>Pas</code>
+- pasmina <code>Britanska kratkodlaka</code> pripada vrsti <code>Mačka</code>
+
+To znači da i između <code>Breed</code> i <code>Species</code> možemo imati relaciju.
+
+---
+
+## Novi entiteti
+
+U ovom primjeru koristit ćemo jednostavan i pregledan model. Datoteke možeš smjestiti tamo gdje držiš domenske modele, npr. u projekt koji već koristiš za zajedničke modele ili u API projekt, ovisno o tome kako ste ranije organizirali rješenje.
+
+<InfoBox type="warning" title="Budi dosljedan postojećoj arhitekturi">
+Nemoj sada nasumično seliti modele u drugi projekt ako ste u ranijim lekcijama već usvojili određenu strukturu. Najbitnije je da učenici razumiju **zašto model stoji na određenom mjestu** i da se cijelo rješenje ponaša dosljedno kroz sve lekcije.
+</InfoBox>
+
+### Model `Species`
+
+```csharp
+public class Species
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    public ICollection<Breed> Breeds { get; set; } = new List<Breed>();
+    public ICollection<Animal> Animals { get; set; } = new List<Animal>();
+}
+```
+
+### Model `Breed`
+
+```csharp
+public class Breed
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    public int SpeciesId { get; set; }
+    public Species? Species { get; set; }
+
+    public ICollection<Animal> Animals { get; set; } = new List<Animal>();
+}
+```
+
+### Model `AnimalStatus`
+
+```csharp
+public class AnimalStatus
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    public ICollection<Animal> Animals { get; set; } = new List<Animal>();
+}
+```
+
+---
+
+## Proširenje modela `Animal`
+
+Sada moramo prilagoditi postojeći model `Animal` tako da koristi strane ključeve.
+
+Ako je model do sada izgledao otprilike ovako:
+
+```csharp
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Species { get; set; } = string.Empty;
+    public string Breed { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public string Description { get; set; } = string.Empty;
+}
+```
+
+onda ga sada treba preoblikovati.
+
+### Nova verzija modela `Animal`
+
+```csharp
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public string Description { get; set; } = string.Empty;
+
+    public int SpeciesId { get; set; }
+    public Species? Species { get; set; }
+
+    public int BreedId { get; set; }
+    public Breed? Breed { get; set; }
+
+    public int AnimalStatusId { get; set; }
+    public AnimalStatus? AnimalStatus { get; set; }
+}
+```
+
+<InfoBox type="info" title="Što je strani ključ?">
+Svojstva poput <code>SpeciesId</code>, <code>BreedId</code> i <code>AnimalStatusId</code> zovu se **strani ključevi**. Ona ne pohranjuju puni tekstualni opis, nego vezu prema zapisu u drugoj tablici.
+</InfoBox>
+
+---
+
+## Zašto je ova promjena važna
+
+Nakon ove izmjene aplikacija dobiva nekoliko važnih prednosti:
+
+- podaci su dosljedniji
+- forme su preglednije jer koriste odabir iz liste
+- lakše je kasnije dodati filtere po vrsti, pasmini i statusu
+- details stranica može dohvatiti više povezanih podataka
+- promjena naziva statusa ili vrste radi se samo na jednom mjestu
+
+<StepGrid>
+  <StepCard title="Prije" icon="edit">
+    U svakoj formi upisuje se tekst. To djeluje jednostavno, ali vodi do nekonzistentnih podataka.
+  </StepCard>
+  <StepCard title="Sada" icon="database">
+    Forma nudi izbor iz tablica. Korisnik manje griješi, a baza ostaje uredna.
+  </StepCard>
+  <StepCard title="Kasnije" icon="route">
+    U sljedećoj lekciji upravo će te relacije omogućiti ozbiljniji prikaz detalja jedne životinje.
+  </StepCard>
+</StepGrid>
+
+---
+
+## Proširenje `DbContexta`
+
+U `AzilEduDbContext` trebaš dodati nove skupove podataka.
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+public class AzilEduDbContext : DbContext
+{
+    public AzilEduDbContext(DbContextOptions<AzilEduDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Animal> Animals => Set<Animal>();
+    public DbSet<Species> Species => Set<Species>();
+    public DbSet<Breed> Breeds => Set<Breed>();
+    public DbSet<AnimalStatus> AnimalStatuses => Set<AnimalStatus>();
+}
+```
+
+Ako želiš, možeš dodatno konfigurirati odnose u metodi <code>OnModelCreating</code>.
+
+### Primjer konfiguracije odnosa
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    modelBuilder.Entity<Breed>()
+        .HasOne(b => b.Species)
+        .WithMany(s => s.Breeds)
+        .HasForeignKey(b => b.SpeciesId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<Animal>()
+        .HasOne(a => a.Species)
+        .WithMany(s => s.Animals)
+        .HasForeignKey(a => a.SpeciesId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<Animal>()
+        .HasOne(a => a.Breed)
+        .WithMany(b => b.Animals)
+        .HasForeignKey(a => a.BreedId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<Animal>()
+        .HasOne(a => a.AnimalStatus)
+        .WithMany(s => s.Animals)
+        .HasForeignKey(a => a.AnimalStatusId)
+        .OnDelete(DeleteBehavior.Restrict);
+}
+```
+
+<InfoBox type="info" title="Zašto koristimo `DeleteBehavior.Restrict`?">
+Ako kasnije netko pokuša obrisati vrstu, pasminu ili status koji se već koristi kod neke životinje, baza neće dopustiti brisanje bez razmišljanja. To je sigurnije ponašanje za poslovne podatke.
+</InfoBox>
+
+---
+
+## Nova migracija
+
+Budući da smo promijenili modele i proširili bazu, sada moramo napraviti novu migraciju.
+
+### Koraci
+
+1. spremi sve datoteke
+2. provjeri da se projekt može kompajlirati
+3. napravi novu migraciju
+4. primijeni migraciju na bazu
+
+```powershell
+Add-Migration AddSpeciesBreedAndStatus
+Update-Database
+```
+
+<InfoBox type="warning" title="Česta pogreška učenika">
+Ako projekt ne prolazi build, migracija će često pasti. Zato prije migracije provjeri ima li grešaka u modelima, namespaceovima i referencama između projekata.
+</InfoBox>
+
+### Što će migracija napraviti
+
+Migracija će:
+
+- stvoriti nove tablice
+- dodati strane ključeve u tablicu <code>Animals</code>
+- povezati tablice prema modelima
+
+Ako već imaš postojeće podatke u <code>Animals</code>, prijelaz može tražiti dodatnu prilagodbu. U nastavnom projektu često je najjednostavnije i najčišće krenuti s urednim modelom prije ozbiljnijeg punjenja podataka.
+
+---
+
+## Seed podaci za pomoćne tablice
+
+Ako želiš da dropdownovi odmah rade smisleno, trebaš ubaciti početne podatke za vrste, pasmine i statuse.
+
+Jedan pristup je ručni unos kroz bazu, ali za nastavu je jasnije pokazati seed podatke u kodu.
+
+### Primjer seed podataka u `OnModelCreating`
+
+```csharp
+modelBuilder.Entity<Species>().HasData(
+    new Species { Id = 1, Name = "Pas" },
+    new Species { Id = 2, Name = "Mačka" },
+    new Species { Id = 3, Name = "Kunić" }
+);
+
+modelBuilder.Entity<Breed>().HasData(
+    new Breed { Id = 1, Name = "Mješanac", SpeciesId = 1 },
+    new Breed { Id = 2, Name = "Labrador", SpeciesId = 1 },
+    new Breed { Id = 3, Name = "Perzijska", SpeciesId = 2 },
+    new Breed { Id = 4, Name = "Europska kratkodlaka", SpeciesId = 2 }
+);
+
+modelBuilder.Entity<AnimalStatus>().HasData(
+    new AnimalStatus { Id = 1, Name = "Dostupna za udomljenje" },
+    new AnimalStatus { Id = 2, Name = "Rezervirana" },
+    new AnimalStatus { Id = 3, Name = "Udomljena" },
+    new AnimalStatus { Id = 4, Name = "Na liječenju" }
+);
+```
+
+<InfoBox type="success" title="Zašto je seed koristan u nastavi?">
+Svi učenici dobivaju iste početne podatke. To smanjuje kaos u radu i olakšava praćenje lekcije.
+</InfoBox>
+
+---
+
+## Prilagodba servisa
+
+Ako si u prethodnoj lekciji izdvojio rad s bazom u servis, sada servis mora znati dohvatiti i povezane podatke.
+
+### Dohvat svih životinja s relacijama
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+public class AnimalService
+{
+    private readonly AzilEduDbContext _context;
+
+    public AnimalService(AzilEduDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<Animal>> GetAllAsync()
+    {
+        return await _context.Animals
+            .Include(a => a.Species)
+            .Include(a => a.Breed)
+            .Include(a => a.AnimalStatus)
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+    }
+}
+```
+
+### Dohvat jedne životinje s relacijama
+
+```csharp
+public async Task<Animal?> GetByIdAsync(int id)
+{
+    return await _context.Animals
+        .Include(a => a.Species)
+        .Include(a => a.Breed)
+        .Include(a => a.AnimalStatus)
+        .FirstOrDefaultAsync(a => a.Id == id);
+}
+```
+
+<InfoBox type="info" title="Zašto koristimo `Include`?">
+Ako samo dohvatimo <code>Animals</code>, često nećemo automatski dobiti popunjena navigacijska svojstva. Metoda <code>Include</code> govori EF Coreu da uz osnovni zapis dohvati i povezane entitete.
+</InfoBox>
+
+---
+
+## Prilagodba forme za unos i uređivanje
+
+Sada forma više ne treba imati obične tekstualne inpute za vrstu, pasminu i status. Umjesto toga koristi dropdownove.
+
+To je idealno mjesto da učenici vide kako se baza i UI međusobno nadopunjuju.
+
+### Što forma sada treba imati
+
+- listu vrsta
+- listu pasmina
+- listu statusa
+- odabir iz dropdowna
+- vezanje odabrane vrijednosti na strani ključ modela
+
+### Primjer učitavanja pomoćnih podataka
+
+```csharp
+private List<Species> speciesList = new();
+private List<Breed> breedList = new();
+private List<AnimalStatus> statusList = new();
+
+protected override async Task OnInitializedAsync()
+{
+    speciesList = await _context.Species.OrderBy(s => s.Name).ToListAsync();
+    breedList = await _context.Breeds.OrderBy(b => b.Name).ToListAsync();
+    statusList = await _context.AnimalStatuses.OrderBy(s => s.Name).ToListAsync();
+}
+```
+
+---
+
+## Primjer MudBlazor dropdowna za vrstu
+
+<CodePreviewSplit
+  title="Odabir vrste životinje pomoću `MudSelect`"
+  image="/images/aziledu/predavanje-8/previews/mudselect-species.webp"
+  imageAlt="MudSelect za odabir vrste životinje"
+  imageCaption="Uploadaj sliku: mudselect-species.webp u public/images/aziledu/predavanje-8/previews/"
+  language="razor"
+  code={`<MudSelect T="int" Label="Vrsta" @bind-Value="animal.SpeciesId" Required="true">
+    @foreach (var species in speciesList)
+    {
+        <MudSelectItem Value="@species.Id">@species.Name</MudSelectItem>
+    }
+</MudSelect>`}
+/>
+
+### Primjer dropdowna za status
+
+<CodePreviewSplit
+  title="Odabir statusa životinje"
+  image="/images/aziledu/predavanje-8/previews/mudselect-status.webp"
+  imageAlt="MudSelect za odabir statusa životinje"
+  imageCaption="Uploadaj sliku: mudselect-status.webp u public/images/aziledu/predavanje-8/previews/"
+  language="razor"
+  code={`<MudSelect T="int" Label="Status" @bind-Value="animal.AnimalStatusId" Required="true">
+    @foreach (var status in statusList)
+    {
+        <MudSelectItem Value="@status.Id">@status.Name</MudSelectItem>
+    }
+</MudSelect>`}
+/>
+
+### Primjer dropdowna za pasminu
+
+<CodePreviewSplit
+  title="Odabir pasmine životinje"
+  image="/images/aziledu/predavanje-8/previews/mudselect-breed.webp"
+  imageAlt="MudSelect za odabir pasmine"
+  imageCaption="Uploadaj sliku: mudselect-breed.webp u public/images/aziledu/predavanje-8/previews/"
+  language="razor"
+  code={`<MudSelect T="int" Label="Pasmine" @bind-Value="animal.BreedId" Required="true">
+    @foreach (var breed in breedList)
+    {
+        <MudSelectItem Value="@breed.Id">@breed.Name</MudSelectItem>
+    }
+</MudSelect>`}
+/>
+
+<InfoBox type="warning" title="Napomena za napredniju verziju">
+U ozbiljnijoj aplikaciji lista pasmina se često filtrira prema odabranoj vrsti. To znači: ako korisnik odabere <code>Pas</code>, forma prikazuje samo pseće pasmine. To možeš dodati kasnije kao proširenje ili domaći zadatak.
+</InfoBox>
+
+---
+
+## Prilagodba tablice s popisom životinja
+
+Nakon uvođenja relacija više nije dovoljno ispisati sirova polja iz modela kao prije. Sada na listi želimo vidjeti nazive povezanih entiteta.
+
+### Primjer ispisa u tablici
+
+```razor
+<MudTable Items="animals" Hover="true" Striped="true">
+    <HeaderContent>
+        <MudTh>Ime</MudTh>
+        <MudTh>Vrsta</MudTh>
+        <MudTh>Pasma</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Dob</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Ime">@context.Name</MudTd>
+        <MudTd DataLabel="Vrsta">@context.Species?.Name</MudTd>
+        <MudTd DataLabel="Pasma">@context.Breed?.Name</MudTd>
+        <MudTd DataLabel="Status">@context.AnimalStatus?.Name</MudTd>
+        <MudTd DataLabel="Dob">@context.Age</MudTd>
+    </RowTemplate>
+</MudTable>
+```
+
+Ovdje učenici moraju primijetiti važnu razliku:
+
+- prije smo možda ispisivali <code>@context.Species</code>
+- sada ispisujemo <code>@context.Species?.Name</code>
+
+To je jasan znak da više ne radimo sa sirovim tekstom, nego s povezanim objektom.
+
+---
+
+## Dodatno uljepšavanje prikaza statusa
+
+Status je dobar kandidat za vizualno isticanje preko boje ili chip komponente.
+
+<CodePreviewSplit
+  title="Prikaz statusa pomoću `MudChip` komponente"
+  image="/images/aziledu/predavanje-8/previews/mudchip-status.webp"
+  imageAlt="Prikaz statusa životinje pomoću MudChip komponente"
+  imageCaption="Uploadaj sliku: mudchip-status.webp u public/images/aziledu/predavanje-8/previews/"
+  language="razor"
+  code={`<MudChip Color="Color.Primary" Variant="Variant.Filled">
+    @context.AnimalStatus?.Name
+</MudChip>`}
+/>
+
+To nije samo estetski dodatak. Status je poslovno važan podatak, pa je dobro da se odmah vizualno istakne.
+
+---
+
+## Što treba provjeriti nakon promjena
+
+Kad završiš modele, migraciju i formu, testiraj sljedeće:
+
+1. možeš li otvoriti aplikaciju bez greške
+2. prikazuje li se tablica životinja
+3. vide li se naziv vrste, pasmine i statusa
+4. možeš li unijeti novu životinju pomoću dropdownova
+5. sprema li se zapis ispravno u bazu
+6. radi li uređivanje bez rušenja aplikacije
+
+<Checklist items={[
+  'Dodane su nove tablice: Species, Breeds i AnimalStatuses.',
+  'Model Animal koristi strane ključeve.',
+  'DbContext je proširen novim DbSet svojstvima.',
+  'Migracija je uspješno napravljena i primijenjena.',
+  'Forma koristi MudSelect za odabir pomoćnih podataka.',
+  'Popis životinja prikazuje vrijednosti iz povezanih tablica.'
+]} />
+
+---
+
+## Najčešće pogreške učenika
+
+### 1. Zaboravljen `Include`
+
+Simptom:
+
+- tablica radi
+- ali vrsta, pasmina ili status ostaju prazni
+
+Uzrok:
+
+- podaci iz povezanih tablica nisu dohvaćeni
+
+### 2. Pogrešan strani ključ
+
+Simptom:
+
+- aplikacija sprema zapis
+- ali prikazuje čudne ili neočekivane podatke
+
+Uzrok:
+
+- pogrešno vezanje dropdowna na model
+
+### 3. Migracija ne prolazi
+
+Simptom:
+
+- `Add-Migration` javlja grešku
+
+Uzrok:
+
+- model nije kompajliran
+- namespaceovi nisu usklađeni
+- `DbContext` nema pristup svim modelima
+
+### 4. Seed podaci i postojeći podaci se sukobljavaju
+
+Ako projekt već ima stari sadržaj baze, ponekad je jednostavnije obrisati razvojnu bazu i ponovno izgraditi strukturu dok si još u razvojnoj fazi.
+
+<InfoBox type="warning" title="Pedagoška napomena">
+Učenicima treba jasno reći da razvojna baza nije isto što i produkcijska baza. U razvoju se baza ponekad briše i ponovno stvara dok model još nije stabilan.
+</InfoBox>
+
+---
+
+## Praktični zadaci za učenike
+
+### Zadatak 1
+
+Dodaj tablicu <code>Species</code> i ubaci barem tri vrste životinja.
+
+### Zadatak 2
+
+Dodaj tablicu <code>AnimalStatus</code> i definiraj barem četiri statusa.
+
+### Zadatak 3
+
+Proširi model <code>Animal</code> tako da koristi strane ključeve prema vrsti, pasmini i statusu.
+
+### Zadatak 4
+
+Prilagodi formu za unos tako da koristi dropdownove umjesto običnih tekstualnih polja.
+
+### Zadatak 5
+
+Na popisu životinja prikaži naziv vrste, pasmine i statusa iz povezanih tablica.
+
+### Zadatak 6 — za naprednije učenike
+
+Napravi da se popis pasmina automatski filtrira kada korisnik odabere vrstu.
+
+---
+
+## Domaći rad
+
+1. Dodaj još nekoliko seed podataka za vrste, pasmine i statuse.
+2. Na listi životinja oboji status različitim bojama, npr.:
+   - dostupna = zelena
+   - rezervirana = narančasta
+   - udomljena = siva ili plava
+   - na liječenju = crvena
+3. Razmisli koje bi još pomoćne tablice trebale postojati u stvarnoj aplikaciji za azil.
+
+---
+
+## Priprema za sljedeću lekciju
+
+Sve što smo danas napravili služi jednom vrlo konkretnom cilju:
+
+**u sljedećoj lekciji izradit ćemo pravu stranicu detalja životinje**.
+
+Ta stranica više neće prikazivati samo osnovna polja iz jedne tablice, nego objedinjene podatke iz više povezanih entiteta.
+
+To znači da je ova lekcija prijelaz iz faze “radimo CRUD nad jednom tablicom” u fazu “gradimo ozbiljniji domenški model”.
+
+<LessonSummary
+  title="Sažetak lekcije"
+  points={[
+    'Tablica Animals više ne treba sama nositi sve tekstualne podatke.',
+    'Species, Breed i AnimalStatus izdvajamo u zasebne tablice.',
+    'Animal koristi strane ključeve i navigacijska svojstva.',
+    'DbContext, migracije i forma moraju pratiti novu strukturu.',
+    'Ovim korakom pripremamo projekt za detalje životinje, fotografije i dodatne evidencije.'
+  ]}
+/>

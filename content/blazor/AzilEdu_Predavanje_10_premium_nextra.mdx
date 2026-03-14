@@ -1,0 +1,601 @@
+import CodePreviewSplit from '../../components/CodePreviewSplit'
+
+export const metadata = {
+  title: 'AzilEdu — Predavanje 10',
+  description: 'Upload i prikaz fotografije životinje u AzilEdu aplikaciji.'
+}
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 10"
+  title="Upload i prikaz fotografije životinje"
+  subtitle="U ovoj lekciji povezujemo details stranicu s fotografijom: omogućujemo odabir slike, spremanje datoteke na server, zapis putanje u bazu i prikaz slike na listi i na detaljima životinje."
+  badges={['Blazor', 'MudBlazor', 'EF Core', 'Datoteke', 'SQLite']}
+/>
+
+<InfoBox type="info" title="Što gradimo u ovoj lekciji?">
+  Do sada smo napravili osnovni CRUD, relacije i stranicu detalja životinje. U ovoj lekciji aplikacija postaje puno stvarnija: svaka životinja može imati svoju fotografiju. Učenici će naučiti kako se datoteka prenosi iz preglednika, kako se sprema na server i kako se putanja slike povezuje s podacima u bazi.
+</InfoBox>
+
+## Ishodi lekcije
+
+Nakon ove lekcije učenik treba moći:
+
+- objasniti razliku između **spremanja slike u bazu** i **spremanja slike na disk uz putanju u bazi**
+- dodati novo svojstvo za putanju slike u model `Animal`
+- napraviti migraciju za novu kolonu u tablici `Animals`
+- omogućiti upload slike kroz Blazor formu
+- spremiti sliku u `wwwroot/images/animals`
+- prikazati stvarnu fotografiju ili fallback sliku ako fotografija ne postoji
+- proširiti listu i details prikaz tako da koriste fotografiju životinje
+
+## Zašto ne spremamo cijelu sliku direktno u bazu?
+
+Početnici često pomisle da je najjednostavnije sliku spremiti kao binarne podatke izravno u tablicu. To tehnički jest moguće, ali za naš projekt to **nije dobar početni pristup**.
+
+Bolje je:
+
+- datoteku slike spremiti na server, unutar projekta
+- u bazu spremiti samo **relativnu putanju do slike**
+
+Prednosti takvog pristupa:
+
+- baza ostaje jednostavnija
+- lakše je prikazati slike u UI-u
+- lakše je provjeriti postoji li slika
+- projekt je didaktički jasniji za učenike
+
+<InfoBox type="success" title="Pravilo koje ćemo pratiti">
+  U ovoj lekciji **slika se sprema na disk**, a u bazi pamtimo samo tekstualnu putanju, npr. `/images/animals/5-rex.webp`.
+</InfoBox>
+
+## Gdje ćemo spremati slike?
+
+U ovom predavanju koristit ćemo folder:
+
+```text
+AzilEdu.App/wwwroot/images/animals/
+```
+
+Ako folder još ne postoji, treba ga ručno napraviti.
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-10/project-folder-images-animals.webp"
+  alt="Prikaz foldera wwwroot/images/animals unutar AzilEdu.App projekta"
+  caption="Umetni screenshot foldera `wwwroot/images/animals` unutar projekta AzilEdu.App. Naziv slike: `project-folder-images-animals.webp`. Lokacija: `/images/aziledu/predavanje-10/project-folder-images-animals.webp`."
+/>
+
+## Korak 1 — Proširenje modela `Animal`
+
+Prvo trebamo modelu dodati svojstvo koje će pamtiti putanju fotografije.
+
+Ako u prethodnim lekcijama klasu `Animal` držiš u `Shared` projektu, nastavi istim obrascem. To je i dalje dobro mjesto za osnovni model koji koriste i App i Api sloj.
+
+Dodaj novo nullable svojstvo:
+
+```csharp
+public string? PhotoPath { get; set; }
+```
+
+Cijela klasa može izgledati otprilike ovako:
+
+```csharp
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public string? Description { get; set; }
+
+    public int SpeciesId { get; set; }
+    public Species? Species { get; set; }
+
+    public int? BreedId { get; set; }
+    public Breed? Breed { get; set; }
+
+    public int AnimalStatusId { get; set; }
+    public AnimalStatus? AnimalStatus { get; set; }
+
+    public string? PhotoPath { get; set; }
+}
+```
+
+<InfoBox type="info" title="Zašto je `PhotoPath` nullable?">
+  Zato što neke životinje u početku možda još nemaju fotografiju. Ako bismo tražili obaveznu vrijednost za svaku životinju, stvarali bismo nepotrebne probleme pri unosu i seedanju podataka.
+</InfoBox>
+
+## Korak 2 — Migracija za novu kolonu
+
+Nakon promjene modela baza više ne odgovara kodu. Zato trebamo napraviti novu migraciju.
+
+U Package Manager Console ili terminalu pokreni naredbe koje koristite u projektu:
+
+```powershell
+Add-Migration AddAnimalPhotoPath
+Update-Database
+```
+
+Ako koristiš `dotnet ef`, ekvivalent bi bio:
+
+```bash
+dotnet ef migrations add AddAnimalPhotoPath
+dotnet ef database update
+```
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-10/migration-add-photo-path.webp"
+  alt="Prikaz uspješno izvršene migracije AddAnimalPhotoPath"
+  caption="Umetni screenshot konzole nakon uspješne migracije `AddAnimalPhotoPath`. Naziv slike: `migration-add-photo-path.webp`. Lokacija: `/images/aziledu/predavanje-10/migration-add-photo-path.webp`."
+/>
+
+## Korak 3 — Kako ćemo raditi upload u Blazoru?
+
+U Blazoru se za upload datoteke tipično koristi komponenta `InputFile`. Ona omogućuje da korisnik u pregledniku odabere datoteku, a mi zatim u kodu pročitamo sadržaj i spremimo ga tamo gdje želimo.
+
+U ovoj lekciji radit ćemo ovako:
+
+1. korisnik na formi odabere sliku
+2. datoteka se privremeno pročita
+3. aplikacija generira sigurno ime datoteke
+4. datoteka se spremi u `wwwroot/images/animals`
+5. putanja slike se zapiše u `PhotoPath`
+6. objekt `Animal` spremi se ili ažurira u bazi
+
+## Korak 4 — Dodavanje servisa za rad s datotekama
+
+Ne bih preporučio da sav upload kod zatrpamo izravno u `.razor` stranicu. Bolje je izdvojiti ga u zaseban servis, jer će tako kod biti čišći i lakši za održavanje.
+
+Napravimo servis, npr. `ImageStorageService`.
+
+Predložena lokacija:
+
+```text
+AzilEdu.App/Services/ImageStorageService.cs
+```
+
+Primjer implementacije:
+
+```csharp
+using Microsoft.AspNetCore.Components.Forms;
+
+namespace AzilEdu.App.Services;
+
+public class ImageStorageService
+{
+    private readonly IWebHostEnvironment _environment;
+
+    public ImageStorageService(IWebHostEnvironment environment)
+    {
+        _environment = environment;
+    }
+
+    public async Task<string?> SaveAnimalPhotoAsync(IBrowserFile? file, int animalId)
+    {
+        if (file is null)
+            return null;
+
+        var uploadsFolder = Path.Combine(_environment.WebRootPath, "images", "animals");
+
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var extension = Path.GetExtension(file.Name);
+        var safeExtension = string.IsNullOrWhiteSpace(extension) ? ".webp" : extension.ToLowerInvariant();
+        var fileName = $"{animalId}-{Guid.NewGuid()}{safeExtension}";
+        var fullPath = Path.Combine(uploadsFolder, fileName);
+
+        await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        await using var fileStream = new FileStream(fullPath, FileMode.Create);
+        await stream.CopyToAsync(fileStream);
+
+        return $"/images/animals/{fileName}";
+    }
+}
+```
+
+<InfoBox type="warning" title="Zašto ograničavamo veličinu datoteke?">
+  Ne želimo dopustiti da korisnik bez kontrole pošalje ogromnu datoteku. Zato koristimo `maxAllowedSize`. U ovoj lekciji koristimo jednostavno ograničenje od 5 MB, što je sasvim dovoljno za školski projekt i dobar uvod u sigurnije rukovanje uploadom.
+</InfoBox>
+
+## Korak 5 — Registracija servisa u `Program.cs`
+
+Nakon što napravimo servis, moramo ga registrirati u DI kontejneru.
+
+U `Program.cs` dodaj:
+
+```csharp
+builder.Services.AddScoped<ImageStorageService>();
+```
+
+<CodePreviewSplit
+  title="Registracija ImageStorageService servisa"
+  language="csharp"
+  image="/images/aziledu/predavanje-10/previews/program-add-image-storage-service.webp"
+  imageAlt="Program.cs s registracijom ImageStorageService servisa"
+  imageCaption="Datoteka slike: `program-add-image-storage-service.webp`. Uploadaj u `/public/images/aziledu/predavanje-10/previews/`."
+  code={`builder.Services.AddScoped<ImageStorageService>();`}
+/>
+
+## Korak 6 — Priprema forme za create i edit
+
+Sada trebamo proširiti postojeću formu za unos i uređivanje životinje. Ako već imaš jednu zajedničku formu ili vrlo slične stranice za create i edit, nastavi na tom obrascu. Cilj je dodati:
+
+- prikaz postojeće fotografije ako postoji
+- `InputFile` za odabir nove slike
+- obradu odabrane datoteke
+
+Na vrh stranice dodaj potrebne `using` i inject dijelove:
+
+```razor
+@using Microsoft.AspNetCore.Components.Forms
+@inject ImageStorageService ImageStorageService
+@inject ISnackbar Snackbar
+```
+
+U formi dodaj prikaz postojeće slike i kontrolu za upload.
+
+```razor
+@if (!string.IsNullOrWhiteSpace(Model.PhotoPath))
+{
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.subtitle1">Trenutna fotografija</MudText>
+        <img src="@Model.PhotoPath" alt="Fotografija životinje @Model.Name" style="max-width: 240px; border-radius: 12px; margin-top: 12px;" />
+    </MudPaper>
+}
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.subtitle1">Dodavanje ili promjena fotografije</MudText>
+    <InputFile OnChange="HandlePhotoSelected" accept="image/*" />
+    <MudText Typo="Typo.body2" Class="mt-2 text-secondary">
+        Preporuka: koristi fotografiju manje veličine, po mogućnosti .jpg, .jpeg, .png ili .webp.
+    </MudText>
+</MudPaper>
+```
+
+<CodePreviewSplit
+  title="Upload blok unutar forme"
+  language="razor"
+  image="/images/aziledu/predavanje-10/previews/form-photo-upload-block.webp"
+  imageAlt="Forma za životinju s blokom za upload fotografije"
+  imageCaption="Datoteka slike: `form-photo-upload-block.webp`. Uploadaj u `/public/images/aziledu/predavanje-10/previews/`."
+  code={`@if (!string.IsNullOrWhiteSpace(Model.PhotoPath))
+{
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.subtitle1">Trenutna fotografija</MudText>
+        <img src="@Model.PhotoPath" alt="Fotografija životinje @Model.Name" style="max-width: 240px; border-radius: 12px; margin-top: 12px;" />
+    </MudPaper>
+}
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.subtitle1">Dodavanje ili promjena fotografije</MudText>
+    <InputFile OnChange="HandlePhotoSelected" accept="image/*" />
+</MudPaper>`}
+/>
+
+## Korak 7 — Privatna varijabla za odabranu datoteku
+
+U code dijelu stranice dodaj privatnu varijablu:
+
+```csharp
+private IBrowserFile? _selectedPhoto;
+```
+
+Zatim metodu koja sprema odabranu datoteku u tu varijablu:
+
+```csharp
+private void HandlePhotoSelected(InputFileChangeEventArgs e)
+{
+    _selectedPhoto = e.File;
+}
+```
+
+Ako želiš, možeš odmah dodati i informativnu poruku:
+
+```csharp
+private void HandlePhotoSelected(InputFileChangeEventArgs e)
+{
+    _selectedPhoto = e.File;
+
+    if (_selectedPhoto is not null)
+    {
+        Snackbar.Add($"Odabrana je datoteka: {_selectedPhoto.Name}", Severity.Info);
+    }
+}
+```
+
+## Korak 8 — Kako spremiti fotografiju kod novog unosa?
+
+Ovdje trebamo biti pažljivi. Kod **novog unosa** `animal.Id` još ne postoji dok zapis ne spremimo u bazu. Zato imamo dva razumna pristupa:
+
+### Pristup A — prvo spremi zapis, pa zatim spremi sliku
+Ovo je najjednostavnije za učenike:
+
+1. spremi `Animal` bez slike
+2. baza dodijeli `Id`
+3. spremi sliku koristeći dobiveni `Id`
+4. ažuriraj `PhotoPath`
+5. ponovno spremi promjenu
+
+To je pristup koji ćemo koristiti u ovoj lekciji.
+
+Primjer metode za spremanje novog zapisa:
+
+```csharp
+private async Task SaveAsync()
+{
+    try
+    {
+        await AnimalService.CreateAsync(Model);
+
+        if (_selectedPhoto is not null)
+        {
+            var photoPath = await ImageStorageService.SaveAnimalPhotoAsync(_selectedPhoto, Model.Id);
+            Model.PhotoPath = photoPath;
+            await AnimalService.UpdateAsync(Model);
+        }
+
+        Snackbar.Add("Životinja je uspješno spremljena.", Severity.Success);
+        Navigation.NavigateTo("/animals");
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Greška pri spremanju: {ex.Message}", Severity.Error);
+    }
+}
+```
+
+<InfoBox type="info" title="Zašto spremamo dvaput?">
+  Zato što kod novog unosa najprije trebamo dobiti ID životinje. Tek tada možemo generirati smislen naziv datoteke i zapisati `PhotoPath`. U ozbiljnijoj aplikaciji ovo se može riješiti sofisticiranije, ali za učenje je ovaj pristup pregledan i didaktički jasan.
+</InfoBox>
+
+## Korak 9 — Kako ažurirati fotografiju kod uređivanja?
+
+Kod uređivanja je nešto jednostavnije, jer `Model.Id` već postoji.
+
+Primjer:
+
+```csharp
+private async Task UpdateAsync()
+{
+    try
+    {
+        if (_selectedPhoto is not null)
+        {
+            var photoPath = await ImageStorageService.SaveAnimalPhotoAsync(_selectedPhoto, Model.Id);
+            Model.PhotoPath = photoPath;
+        }
+
+        await AnimalService.UpdateAsync(Model);
+
+        Snackbar.Add("Podaci o životinji su uspješno ažurirani.", Severity.Success);
+        Navigation.NavigateTo("/animals");
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Greška pri ažuriranju: {ex.Message}", Severity.Error);
+    }
+}
+```
+
+<CodePreviewSplit
+  title="Ažuriranje životinje s novom fotografijom"
+  language="csharp"
+  image="/images/aziledu/predavanje-10/previews/update-animal-photo-flow.webp"
+  imageAlt="Prikaz uređivanja životinje i spremanja nove fotografije"
+  imageCaption="Datoteka slike: `update-animal-photo-flow.webp`. Uploadaj u `/public/images/aziledu/predavanje-10/previews/`."
+  code={`private async Task UpdateAsync()
+{
+    try
+    {
+        if (_selectedPhoto is not null)
+        {
+            var photoPath = await ImageStorageService.SaveAnimalPhotoAsync(_selectedPhoto, Model.Id);
+            Model.PhotoPath = photoPath;
+        }
+
+        await AnimalService.UpdateAsync(Model);
+
+        Snackbar.Add("Podaci o životinji su uspješno ažurirani.", Severity.Success);
+        Navigation.NavigateTo("/animals");
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Greška pri ažuriranju: {ex.Message}", Severity.Error);
+    }
+}`}
+/>
+
+## Korak 10 — Prikaz fotografije na listi životinja
+
+Sad kad životinje mogu imati fotografiju, treba to pokazati i na listi. To aplikaciju odmah čini preglednijom i profesionalnijom.
+
+U `MudTable` možeš dodati novi stupac, npr. **Slika**.
+
+Primjer:
+
+```razor
+<HeaderContent>
+    <MudTh>Slika</MudTh>
+    <MudTh>Ime</MudTh>
+    <MudTh>Vrsta</MudTh>
+    <MudTh>Status</MudTh>
+    <MudTh>Akcije</MudTh>
+</HeaderContent>
+<RowTemplate>
+    <MudTd>
+        <img src="@(string.IsNullOrWhiteSpace(context.PhotoPath) ? "/images/animals/default-animal.webp" : context.PhotoPath)"
+             alt="Fotografija životinje @context.Name"
+             style="width:72px; height:72px; object-fit:cover; border-radius:12px;" />
+    </MudTd>
+    <MudTd>@context.Name</MudTd>
+    <MudTd>@context.Species?.Name</MudTd>
+    <MudTd>@context.AnimalStatus?.Name</MudTd>
+    <MudTd>
+        <!-- postojeći gumbi -->
+    </MudTd>
+</RowTemplate>
+```
+
+<CodePreviewSplit
+  title="Prikaz fotografije na listi životinja"
+  language="razor"
+  image="/images/aziledu/predavanje-10/previews/table-animal-photo-column.webp"
+  imageAlt="MudTable s novim stupcem za fotografiju životinje"
+  imageCaption="Datoteka slike: `table-animal-photo-column.webp`. Uploadaj u `/public/images/aziledu/predavanje-10/previews/`."
+  code={`<MudTd>
+    <img src="@(string.IsNullOrWhiteSpace(context.PhotoPath) ? "/images/animals/default-animal.webp" : context.PhotoPath)"
+         alt="Fotografija životinje @context.Name"
+         style="width:72px; height:72px; object-fit:cover; border-radius:12px;" />
+</MudTd>`}
+/>
+
+## Korak 11 — Fallback slika
+
+Vrlo je važno da UI ne pukne ako neka životinja nema fotografiju. Zato koristimo fallback sliku.
+
+Predlažem da dodaš datoteku:
+
+```text
+AzilEdu.App/wwwroot/images/animals/default-animal.webp
+```
+
+To može biti jednostavna neutralna ilustracija ili ikona životinje.
+
+<ScreenshotFigure
+  src="/images/aziledu/predavanje-10/default-fallback-image.webp"
+  alt="Prikaz fallback slike koja se koristi ako životinja nema svoju fotografiju"
+  caption="Umetni screenshot ili samu fallback sliku koja se koristi kada `PhotoPath` nije postavljen. Naziv slike: `default-fallback-image.webp`. Lokacija: `/images/aziledu/predavanje-10/default-fallback-image.webp`."
+/>
+
+## Korak 12 — Prikaz fotografije na details stranici
+
+Details stranica iz prethodne lekcije sada napokon dobiva pravi smisao. Na njoj slika treba biti istaknutija nego na tablici.
+
+Primjer:
+
+```razor
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4 h-100">
+            <img src="@(string.IsNullOrWhiteSpace(Model.PhotoPath) ? "/images/animals/default-animal.webp" : Model.PhotoPath)"
+                 alt="Fotografija životinje @Model.Name"
+                 style="width:100%; max-width:360px; object-fit:cover; border-radius:16px;" />
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4 h-100">
+            <MudText Typo="Typo.h4">@Model.Name</MudText>
+            <MudText Typo="Typo.body1">Vrsta: @Model.Species?.Name</MudText>
+            <MudText Typo="Typo.body1">Pasmina: @Model.Breed?.Name</MudText>
+            <MudText Typo="Typo.body1">Status: @Model.AnimalStatus?.Name</MudText>
+            <MudText Typo="Typo.body1">Opis: @Model.Description</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+```
+
+<CodePreviewSplit
+  title="Fotografija na details stranici"
+  language="razor"
+  image="/images/aziledu/predavanje-10/previews/details-photo-layout.webp"
+  imageAlt="Details stranica s velikom fotografijom lijevo i podacima desno"
+  imageCaption="Datoteka slike: `details-photo-layout.webp`. Uploadaj u `/public/images/aziledu/predavanje-10/previews/`."
+  code={`<MudItem xs="12" md="4">
+    <MudPaper Class="pa-4 h-100">
+        <img src="@(string.IsNullOrWhiteSpace(Model.PhotoPath) ? "/images/animals/default-animal.webp" : Model.PhotoPath)"
+             alt="Fotografija životinje @Model.Name"
+             style="width:100%; max-width:360px; object-fit:cover; border-radius:16px;" />
+    </MudPaper>
+</MudItem>`}
+/>
+
+## Korak 13 — Treba li brisati staru sliku kad korisnik doda novu?
+
+U ovoj lekciji možemo ostaviti jednostavniji pristup: kad korisnik doda novu sliku, spremi se nova datoteka i `PhotoPath` pokazuje na nju. Stara datoteka može ostati na disku.
+
+To nije idealno za produkciju, ali je sasvim prihvatljivo za trenutni stupanj učenja. Kasnije možeš napraviti dodatnu lekciju o:
+
+- brisanju stare slike
+- provjeri postoji li datoteka
+- čišćenju siročadi na disku
+
+<InfoBox type="warning" title="Što još ne rješavamo?">
+  U ovoj lekciji još ne radimo napredne provjere tipa MIME type validacija, resize slike, crop, optimizaciju formata ili automatsko brisanje stare datoteke. To su dobre teme, ali za sada bi samo zamutile osnovnu logiku učenja.
+</InfoBox>
+
+## Korak 14 — Najčešće pogreške učenika
+
+### 1. Folder za slike ne postoji
+Ako `wwwroot/images/animals` ne postoji, spremanje slike može pasti. Zato servis provjerava postoji li folder i po potrebi ga kreira.
+
+### 2. Putanja slike je kriva
+Ako vratiš fizičku Windows putanju umjesto web putanje, slika se neće prikazati u pregledniku. U UI-u treba biti web putanja oblika:
+
+```text
+/images/animals/neka-slika.webp
+```
+
+### 3. Učenik zaboravi migraciju
+Ako `PhotoPath` postoji u klasi, ali nije dodana migracija, baza neće imati novu kolonu.
+
+### 4. `InputFile` je dodan, ali se odabrana datoteka nigdje ne sprema
+Sama kontrola nije dovoljna. Trebaš i:
+- privatnu varijablu
+- handler metodu
+- poziv servisa tijekom create ili update procesa
+
+### 5. Aplikacija pokušava učitati sliku koja ne postoji
+Zato koristimo fallback sliku.
+
+## Mini zadatak za učenike
+
+Proširi aplikaciju tako da:
+
+1. svaka životinja može imati fotografiju
+2. na listi se vidi mala thumbnail slika
+3. na details stranici se vidi veća slika
+4. ako slika ne postoji, koristi se `default-animal.webp`
+5. kod uređivanja korisnik može zamijeniti staru fotografiju novom
+
+## Dodatni zadatak za naprednije učenike
+
+Pokušaj napraviti i sljedeće:
+
+- ograniči upload samo na slike (`.jpg`, `.jpeg`, `.png`, `.webp`)
+- prikaži naziv odabrane datoteke prije spremanja
+- prikaži malu preview sliku prije nego korisnik klikne spremi
+
+To nije obavezno za osnovnu funkcionalnost, ali je vrlo koristan dodatni izazov.
+
+## Domaći rad
+
+Samostalno doradi projekt tako da:
+
+- dodaš `PhotoPath` u model i bazu
+- implementiraš spremanje slike u `wwwroot/images/animals`
+- dodaš fallback sliku
+- prikažeš fotografiju na tablici i details stranici
+- testiraš unos nove životinje sa slikom i uređivanje postojeće životinje s promjenom slike
+
+## Sažetak lekcije
+
+U ovoj lekciji napravili smo jedan od najvažnijih koraka prema stvarnoj aplikaciji za azil:
+
+- proširili smo model `Animal` svojstvom `PhotoPath`
+- napravili migraciju za novu kolonu u bazi
+- izradili servis za spremanje fotografija
+- omogućili upload slike kroz Blazor formu
+- povezali fotografije s listom i details prikazom
+- dodali fallback sliku za životinje bez fotografije
+
+Time aplikacija više nije samo CRUD nad tekstualnim podacima. Svaka životinja sada može imati svoj vizualni identitet, što je za azilsku aplikaciju vrlo važan korak.
+
+<LessonSummary
+  title="Što slijedi dalje?"
+  points={[
+    'Sada kada životinja ima povezane osnovne podatke i fotografiju, sljedeći logičan korak je zdravstvena evidencija ili evidencija udomljenja.',
+    'Projekt postaje sve sličniji stvarnoj poslovnoj aplikaciji: više tablica, više prikaza i više povezanih informacija na jednom mjestu.',
+    'U sljedećem predavanju možemo dodati medicinske bilješke, cijepljenja ili modul udomljenja.'
+  ]}
+/>

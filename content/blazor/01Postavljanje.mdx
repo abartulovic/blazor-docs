@@ -1,0 +1,795 @@
+---
+title: "Postavljanje Blazor projekata"
+description: "Premium Nextra verzija prve lekcije: postavljanje Blazor rješenja s projektima App, Api i Shared."
+---
+
+export const Hero = ({ badge, title, subtitle, children }) => (
+  <div
+    style={{
+      margin: "0 0 2rem 0",
+      padding: "1.4rem 1.35rem",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,.12), rgba(168,85,247,.10) 55%, rgba(16,185,129,.10))",
+      border: "1px solid rgba(99,102,241,.18)",
+    }}
+  >
+    <div
+      style={{
+        display: "inline-block",
+        padding: ".28rem .65rem",
+        borderRadius: "999px",
+        fontSize: ".85rem",
+        fontWeight: 700,
+        background: "rgba(37,99,235,.10)",
+        color: "#1d4ed8",
+        marginBottom: ".9rem",
+      }}
+    >
+      {badge}
+    </div>
+    <h1 style={{ margin: "0 0 .6rem 0", fontSize: "2.2rem", lineHeight: 1.1 }}>
+      {title}
+    </h1>
+    <p
+      style={{
+        margin: 0,
+        fontSize: "1.08rem",
+        lineHeight: 1.75,
+        maxWidth: "70ch",
+        color: "rgba(17,24,39,.88)",
+      }}
+    >
+      {subtitle}
+    </p>
+    {children ? <div style={{ marginTop: "1rem" }}>{children}</div> : null}
+  </div>
+);
+
+export const Note = ({ title, tone = "blue", children }) => {
+  const palette = {
+    blue: ["#eff6ff", "#bfdbfe", "#1d4ed8"],
+    green: ["#f0fdf4", "#bbf7d0", "#15803d"],
+    amber: ["#fffbeb", "#fde68a", "#b45309"],
+    red: ["#fef2f2", "#fecaca", "#b91c1c"],
+    purple: ["#faf5ff", "#e9d5ff", "#7e22ce"],
+  };
+  const [bg, border, titleColor] = palette[tone] ?? palette.blue;
+  return (
+    <div
+      style={{
+        margin: "1.1rem 0 1.35rem",
+        padding: "1rem 1.05rem",
+        borderRadius: "18px",
+        background: bg,
+        border: `1px solid ${border}`,
+      }}
+    >
+      <div
+        style={{ fontWeight: 800, color: titleColor, marginBottom: ".45rem" }}
+      >
+        {title}
+      </div>
+      <div style={{ lineHeight: 1.7 }}>{children}</div>
+    </div>
+  );
+};
+
+export const Shot = ({ src, alt, caption, width = "100%" }) => (
+  <figure style={{ margin: "1.25rem 0 1.8rem" }}>
+    <img
+      src={src}
+      alt={alt}
+      style={{
+        width,
+        maxWidth: "100%",
+        display: "block",
+        margin: "0 auto",
+        borderRadius: "18px",
+        border: "1px solid rgba(0,0,0,.08)",
+        boxShadow: "0 18px 40px rgba(15,23,42,.10)",
+      }}
+    />
+    <figcaption
+      style={{
+        marginTop: ".7rem",
+        textAlign: "center",
+        fontSize: ".95rem",
+        lineHeight: 1.6,
+        color: "#6b7280",
+        maxWidth: "70ch",
+        marginInline: "auto",
+      }}
+    >
+      {caption}
+    </figcaption>
+  </figure>
+);
+
+export const StatGrid = ({ items }) => (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+      gap: "1rem",
+      margin: "1.2rem 0 1.6rem",
+    }}
+  >
+    {items.map((item, i) => (
+      <div
+        key={i}
+        style={{
+          padding: "1rem",
+          borderRadius: "18px",
+          border: "1px solid rgba(0,0,0,.08)",
+          background: "rgba(255,255,255,.75)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "1.5rem",
+            fontWeight: 800,
+            marginBottom: ".25rem",
+          }}
+        >
+          {item.value}
+        </div>
+        <div style={{ fontWeight: 700, marginBottom: ".25rem" }}>
+          {item.label}
+        </div>
+        <div style={{ fontSize: ".95rem", color: "#6b7280", lineHeight: 1.55 }}>
+          {item.text}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+export const CardGrid = ({ children }) => (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "1rem",
+      margin: "1rem 0 1.5rem",
+    }}
+  >
+    {children}
+  </div>
+);
+
+export const Card = ({ title, accent = "#2563eb", children }) => (
+  <div
+    style={{
+      borderRadius: "20px",
+      border: "1px solid rgba(0,0,0,.08)",
+      padding: "1rem",
+      background:
+        "linear-gradient(180deg, rgba(255,255,255,.95), rgba(248,250,252,.95))",
+    }}
+  >
+    <div
+      style={{
+        width: "44px",
+        height: "4px",
+        borderRadius: "999px",
+        background: accent,
+        marginBottom: ".75rem",
+      }}
+    />
+    <div style={{ fontWeight: 800, marginBottom: ".5rem" }}>{title}</div>
+    <div style={{ lineHeight: 1.7 }}>{children}</div>
+  </div>
+);
+
+export const Step = ({ n, title, children }) => (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "56px 1fr",
+      gap: "1rem",
+      margin: "1rem 0 1.35rem",
+      alignItems: "start",
+    }}
+  >
+    <div
+      style={{
+        width: "56px",
+        height: "56px",
+        borderRadius: "18px",
+        display: "grid",
+        placeItems: "center",
+        fontWeight: 800,
+        fontSize: "1.1rem",
+        color: "#1d4ed8",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,.18), rgba(168,85,247,.12))",
+        border: "1px solid rgba(59,130,246,.22)",
+      }}
+    >
+      {n}
+    </div>
+    <div style={{ paddingTop: ".15rem" }}>
+      <div
+        style={{ fontWeight: 800, fontSize: "1.08rem", marginBottom: ".35rem" }}
+      >
+        {title}
+      </div>
+      <div style={{ lineHeight: 1.72 }}>{children}</div>
+    </div>
+  </div>
+);
+
+export const Checklist = ({ items }) => (
+  <div
+    style={{
+      border: "1px solid rgba(0,0,0,.08)",
+      borderRadius: "20px",
+      padding: "1rem 1.1rem",
+      background: "rgba(255,255,255,.78)",
+      margin: "1rem 0 1.5rem",
+    }}
+  >
+    <div style={{ fontWeight: 800, marginBottom: ".65rem" }}>
+      Kontrolna lista
+    </div>
+    <ul style={{ margin: 0, paddingLeft: "1.25rem", lineHeight: 1.8 }}>
+      {items.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  </div>
+);
+
+<Hero
+  badge="Predavanje 1"
+  title="Postavljanje AzilEdu rješenja"
+  subtitle="U ovoj lekciji ne radimo još forme, tablice ni unos životinja. Radimo nešto važnije: čist temelj projekta. Ako početna arhitektura bude loša, kasnije će svaki novi modul biti sporiji, zbunjujući i teži za održavanje."
+/>
+
+<StatGrid
+  items={[
+    {
+      value: "3",
+      label: "projekta",
+      text: "App, Api i Shared čine osnovu rješenja.",
+    },
+    {
+      value: "1",
+      label: "solution",
+      text: "Sve držimo unutar jednog rješenja AzilEdu.",
+    },
+    {
+      value: "2",
+      label: "startup projekta",
+      text: "App i Api pokrećemo zajedno tijekom razvoja.",
+    },
+  ]}
+/>
+
+<Note title="Ishodi ove lekcije" tone="green">
+  <ul>
+    <li>
+      razlikovati <strong>solution</strong> i <strong>project</strong>
+    </li>
+    <li>
+      objasniti ulogu projekata <strong>App</strong>, <strong>Api</strong> i{" "}
+      <strong>Shared</strong>
+    </li>
+    <li>
+      kreirati početnu strukturu rješenja <code>AzilEdu</code>
+    </li>
+    <li>
+      pokrenuti <strong>App</strong> i <strong>Api</strong> paralelno
+    </li>
+    <li>ukloniti demo sadržaj iz Blazor predloška</li>
+    <li>napraviti prvi smisleni Git commit</li>
+  </ul>
+</Note>
+
+## Zašto odmah radimo odvojene projekte?
+
+Najčešća početnička greška je da se sve trpa u jedan projekt: UI, modeli, API logika, pomoćne klase i nasumične datoteke. To kratko djeluje brže, ali kasnije postane nered.
+
+<CardGrid>
+  <Card title="AzilEdu.App" accent="#2563eb">
+    Blazor korisničko sučelje. Ovdje su stranice, navigacija, forme i prikaz
+    podataka koje korisnik vidi u pregledniku.
+  </Card>
+  <Card title="AzilEdu.Api" accent="#10b981">
+    Backend sloj. Prima HTTP zahtjeve, obrađuje ih i kasnije komunicira s bazom
+    podataka.
+  </Card>
+  <Card title="AzilEdu.Shared" accent="#a855f7">
+    Zajednička biblioteka. Ovdje stavljamo DTO modele i tipove koje koriste i
+    App i Api.
+  </Card>
+</CardGrid>
+
+```text
+Korisnik -> AzilEdu.App -> AzilEdu.Api -> baza/podaci -> odgovor -> AzilEdu.App
+```
+
+<Note title="Ovo mora ostati kristalno jasno" tone="blue">
+  <strong>App nije API.</strong>
+  <br />
+  <strong>API nije baza.</strong>
+  <br />
+  <strong>Shared nije mjesto za Razor stranice ni kontrolere.</strong>
+</Note>
+
+## Pojmovi koje moraš znati prije rada
+
+<Step n="01" title="Solution">
+  Krovno rješenje koje okuplja više projekata. U našem slučaju zove se{" "}
+  <code>AzilEdu</code>.
+</Step>
+
+<Step n="02" title="Project">
+  Jedan konkretan dio rješenja. Ovdje ćemo imati tri projekta, svaki sa svojom
+  jasnom odgovornošću.
+</Step>
+
+<Step n="03" title="Frontend">
+  Dio aplikacije koji korisnik vidi i koristi. Kod nas je to Blazor projekt{" "}
+  <code>AzilEdu.App</code>.
+</Step>
+
+<Step n="04" title="Backend / API">
+  Sloj koji prima zahtjeve, obrađuje podatke i vraća odgovor. Kod nas je to{" "}
+  <strong>ASP.NET Core Web API</strong>.
+</Step>
+
+<Step n="05" title="Shared">
+  Zajednička biblioteka za DTO modele i ostale tipove koji moraju biti dostupni
+  i frontendu i backendu.
+</Step>
+
+## Plan rada
+
+<Checklist
+  items={[
+    "kreirati Blank Solution naziva AzilEdu",
+    "dodati App projekt tipa Blazor Web App",
+    "dodati Api projekt tipa ASP.NET Core Web API",
+    "dodati Shared projekt tipa Class Library",
+    "povezati App i Api sa Shared projektom",
+    "pokrenuti App i Api zajedno",
+    "očistiti Counter i Weather iz templatea",
+    "napraviti prvi commit",
+  ]}
+/>
+
+---
+
+## 1. Kreiranje solutiona
+
+<Note title="Što radiš u ovom koraku" tone="purple">
+  U Visual Studio 2026 kreiraš novi <strong>Blank Solution</strong> i daješ mu
+  naziv <code>AzilEdu</code>.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/01-new-solution-menu.png"
+  alt="Početni zaslon za kreiranje novog projekta u Visual Studiju"
+  width="78%"
+  caption="Početni zaslon za izradu novog rješenja u Visual Studiju. Odavde kreće cijela aplikacija."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/02-blank-solution-search.png"
+  alt="Pretraga predloška Blank Solution"
+  width="72%"
+  caption="U tražilicu upiši Blank Solution. Ne krećemo odmah s Blazor projektom jer prvo želimo urednu arhitekturu solutiona."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/03-blank-solution-configure.png"
+  alt="Konfiguracija Blank Solution projekta"
+  width="82%"
+  caption="Naziv solutiona neka bude AzilEdu. Dobro imenovanje od početka ti kasnije štedi vrijeme i smanjuje konfuziju."
+/>
+
+<Note title="Zašto je ovo važno" tone="amber">
+  Solution je spremnik cijelog rješenja. Ako kreneš bez njega ili ga kasnije
+  naknadno spašavaš, nepotrebno si radiš nered.
+</Note>
+
+---
+
+## 2. Dodavanje projekta `AzilEdu.App`
+
+<Note title="Cilj koraka" tone="blue">
+  Dodaješ <strong>Blazor Web App</strong> projekt koji predstavlja frontend dio
+  aplikacije.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/04-add-new-project.png"
+  alt="Dodavanje novog projekta u solution"
+  width="58%"
+  caption="Novi dio rješenja uvijek dodaješ kroz Add → New Project. Tako solution ostaje pregledan i dosljedan."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/05-blazor-web-app-search.png"
+  alt="Pretraga predloška Blazor Web App"
+  width="74%"
+  caption="Pronađi predložak Blazor Web App. To je frontend sloj koji korisnik vidi i koristi."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/06-blazor-web-app-configure.png"
+  alt="Konfiguracija projekta AzilEdu.App"
+  width="64%"
+  caption="Projekt nazovi AzilEdu.App. Ime odmah mora pokazivati čemu taj projekt služi."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/07-blazor-web-app-options.png"
+  alt="Dodatne opcije za Blazor Web App projekt"
+  width="58%"
+  caption="Opcije se mogu malo razlikovati po verziji Visual Studija ili .NET-a, ali cilj je isti: dobiti čist početni frontend projekt."
+/>
+
+<details>
+  <summary>
+    <strong>Što će kasnije živjeti u App projektu?</strong>
+  </summary>
+  <div style={{ marginTop: ".8rem", lineHeight: 1.7 }}>
+    Stranice, navigacija, forme, pozivi prema API-ju, prikaz DTO podataka i
+    korisničko iskustvo cijele aplikacije.
+  </div>
+</details>
+
+---
+
+## 3. Dodavanje projekta `AzilEdu.Api`
+
+<Note title="Cilj koraka" tone="green">
+  Dodaješ projekt tipa <strong>ASP.NET Core Web API</strong>. To je backend sloj
+  koji prima zahtjeve iz Blazor aplikacije.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/08-web-api-search.png"
+  alt="Pretraga predloška ASP.NET Core Web API"
+  width="54%"
+  caption="Potraži predložak ASP.NET Core Web API. Ovaj projekt će kasnije služiti za obradu podataka i komunikaciju s bazom."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/09-web-api-configure.png"
+  alt="Konfiguracija projekta AzilEdu.Api"
+  width="66%"
+  caption="Naziv AzilEdu.Api jasno odvaja backend od Blazor aplikacije. To je dobra praksa i za ozbiljnije projekte."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/10-web-api-options.png"
+  alt="Dodatne opcije za Web API projekt"
+  width="76%"
+  caption="Nije poanta u svim opcijama, nego u tome da dobiješ čist i uredan Web API projekt."
+/>
+
+<Note title="Što će kasnije živjeti u Api projektu" tone="blue">
+  Kontroleri, servisni sloj, validacija, pristup bazi, obrada zahtjeva i
+  poslovna logika aplikacije.
+</Note>
+
+---
+
+## 4. Dodavanje projekta `AzilEdu.Shared`
+
+<Note title="Cilj koraka" tone="purple">
+  Dodaješ <strong>Class Library</strong> projekt koji služi kao zajedničko
+  mjesto za DTO modele i zajedničke tipove.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/11-class-library-search.png"
+  alt="Pretraga predloška Class Library"
+  width="74%"
+  caption="Za zajedničke klase koristi se Class Library. Tako modeli nisu zalijepljeni samo za frontend ili samo za backend."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/12-class-library-configure.png"
+  alt="Konfiguracija projekta AzilEdu.Shared"
+  width="64%"
+  caption="Naziv AzilEdu.Shared odmah govori da se radi o biblioteci koju dijele druga dva projekta."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/13-class-library-options.png"
+  alt="Dodatne opcije za Class Library projekt"
+  width="58%"
+  caption="To je biblioteka bez korisničkog sučelja i bez API endpointa — upravo ono što nam treba za zajedničke modele."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/14-solution-explorer-three-projects.png"
+  alt="Solution Explorer sa sva tri projekta"
+  width="34%"
+  caption="Nakon ovog koraka u Solution Exploreru moraš vidjeti App, Api i Shared. To je temelj naše arhitekture."
+/>
+
+<Note title="Zašto nam Shared stvarno treba" tone="green">
+  Ako bi iste DTO klase pisao dvaput, vrlo brzo bi došlo do razlika, dupliranja
+  i grešaka. Shared nije luksuz, nego red.
+</Note>
+
+---
+
+## 5. Dodavanje referenci na `Shared`
+
+<Note title="Što radiš" tone="amber">
+  I <code>AzilEdu.App</code> i <code>AzilEdu.Api</code> moraju referencirati{" "}
+  <code>AzilEdu.Shared</code>.
+</Note>
+
+```text
+Dependencies -> Add Project Reference
+```
+
+<Shot
+  src="/images/aziledu/predavanje-1/15-add-project-reference-menu.png"
+  alt="Add Project Reference izbornik"
+  width="44%"
+  caption="Reference dodaješ kroz Dependencies. To je standardan način povezivanja projekata unutar solutiona."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/16-reference-manager-shared.png"
+  alt="Reference Manager s odabranim Shared projektom"
+  width="72%"
+  caption="U Reference Manageru označi AzilEdu.Shared. Time projekt dobiva pristup zajedničkim klasama iz te biblioteke."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/17-add-project-reference-app.png"
+  alt="Provjera reference prema Shared projektu"
+  width="84%"
+  caption="Isti postupak napravi u oba projekta. Na kraju i App i Api moraju imati referencu na Shared."
+/>
+
+<Note title="Tipična pogreška" tone="red">
+  Učenici često dodaju referencu samo u jedan projekt. Tada jedan dio aplikacije
+  vidi DTO modele, a drugi ne. To nije sitnica nego osnovni problem arhitekture.
+</Note>
+
+---
+
+## 6. Pokretanje više startup projekata
+
+<Note title="Što radiš" tone="purple">
+  Podesi da se <code>AzilEdu.App</code> i <code>AzilEdu.Api</code> pokreću
+  zajedno tijekom razvoja.
+</Note>
+
+```text
+Configure Startup Projects
+```
+
+<Shot
+  src="/images/aziledu/predavanje-1/18-configure-startup-projects-menu.png"
+  alt="Izbornik Configure Startup Projects"
+  width="42%"
+  caption="Više startup projekata podešava se na razini solutiona, ne unutar pojedinog projekta."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/19-multiple-startup-projects.png"
+  alt="Postavljanje više startup projekata"
+  width="78%"
+  caption="Za App i Api postavi akciju Start. Tako oba projekta radiš i testiraš kao jednu cjelinu."
+/>
+
+<Note title="Zašto je ovo važno" tone="amber">
+  Ako pokreneš samo frontend ili samo backend, ne testiraš realnu komunikaciju
+  između slojeva. A baš ta komunikacija je srce cijele aplikacije.
+</Note>
+
+---
+
+## 7. Prvo pokretanje solutiona
+
+<Note title="Pravilo rada" tone="green">
+  Ne briši template sadržaj prije nego ga jednom pokreneš. Prvo pogledaj što je
+  generator napravio, pa tek onda čisti.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/20-start-solution.png"
+  alt="Pokretanje solutiona"
+  width="88%"
+  caption="Prvo pokretanje bez izmjena je korisno jer vidiš što točno dolazi iz templatea i što poslije trebaš zadržati ili ukloniti."
+/>
+
+---
+
+## 8. Uklanjanje `Counter` i `Weather` dijelova
+
+<Note title="Što radiš" tone="blue">
+  Brišeš ili uklanjaš <code>Counter</code> i <code>Weather</code> stranice te
+  njihove stavke iz navigacije. To su demo elementi predloška, ne dio AzilEdu
+  aplikacije.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/21-remove-counter-weather-nav.png"
+  alt="Uklanjanje Counter i Weather stavki iz navigacije"
+  width="36%"
+  caption="Navigacija treba prikazivati samo ono što pripada tvojoj aplikaciji. Demo stavke stvaraju šum i zbunjuju korisnika."
+/>
+
+<details>
+  <summary>
+    <strong>Što ako su datoteke na malo drukčijem mjestu?</strong>
+  </summary>
+  <div style={{ marginTop: ".8rem", lineHeight: 1.7 }}>
+    Ovisno o verziji Blazor predloška, raspored datoteka može biti malo
+    drukčiji. Najčešće ćeš slične datoteke naći unutar{" "}
+    <code>Components/Pages</code> i <code>Components/Layout</code>. Ne paničari
+    zbog sitnih razlika u strukturi.
+  </div>
+</details>
+
+---
+
+## 9. Prilagodba početne stranice
+
+<Note title="Cilj" tone="green">
+  Početna stranica mora odmah pokazivati da se radi o projektu{" "}
+  <strong>AzilEdu</strong>, a ne o generičkom demo templateu.
+</Note>
+
+### Primjer početnog sadržaja za `Home.razor`
+
+```razor
+@page "/"
+
+<PageTitle>Azil za životinje</PageTitle>
+
+<h1>Dobro došli!</h1>
+
+<p>
+    AzilEdu je aplikacija za upravljanje podacima o životinjama,
+    vrstama, pasminama i udomljavanju.
+</p>
+
+<p>
+    U sljedećim lekcijama postupno ćemo dodavati nove funkcionalnosti
+    i povezivati korisničko sučelje s API slojem.
+</p>
+```
+
+<Note title="Što ovaj kod radi" tone="blue">
+  <ul>
+    <li>
+      <code>@page "/"</code> definira početnu rutu stranice
+    </li>
+    <li>
+      <code>&lt;PageTitle&gt;</code> postavlja naslov kartice u pregledniku
+    </li>
+    <li>
+      <code>&lt;h1&gt;</code> i <code>&lt;p&gt;</code> daju jasan početni
+      sadržaj stranice
+    </li>
+  </ul>
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/22-home-razor-example.png"
+  alt="Primjer uređene početne stranice Home.razor"
+  width="56%"
+  caption="Početna stranica sada već izgleda kao dio stvarne aplikacije, a ne kao generički demo projekt."
+/>
+
+---
+
+## 10. Prvi Git commit
+
+<Note title="Što radiš" tone="purple">
+  Spremaš početno stanje projekta kroz Git. Nemoj ovo preskakati — commit nije
+  ukras, nego točka povratka i jasna granica rada.
+</Note>
+
+<Shot
+  src="/images/aziledu/predavanje-1/23-view-git-changes.png"
+  alt="Otvaranje izbornika Git Changes"
+  width="46%"
+  caption="Git Changes je centralno mjesto za pregled izmjena i izradu commitova unutar Visual Studija."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/24-git-changes-window.png"
+  alt="Prozor Git Changes"
+  width="44%"
+  caption="Prije commita provjeri koje su datoteke promijenjene. Jedan commit treba predstavljati jednu logičku cjelinu rada."
+/>
+
+<Shot
+  src="/images/aziledu/predavanje-1/25-create-git-repository.png"
+  alt="Create Git Repository prozor"
+  width="78%"
+  caption="Ako repozitorij još nije kreiran, ovdje možeš napraviti lokalni ili povezani Git repozitorij za projekt."
+/>
+
+Predloženi prvi commit:
+
+```text
+Initial AzilEdu solution setup
+```
+
+<Note title="Dobra praksa" tone="green">
+  Prvi commit neka sadrži samo početnu strukturu solutiona i čišćenje templatea.
+  Nemoj u isti commit trpati i dodatne funkcionalnosti.
+</Note>
+
+---
+
+## Što moraš znati prepoznati u Solution Exploreru
+
+<CardGrid>
+  <Card title="Program.cs" accent="#2563eb">
+    Početna konfiguracija projekta i registracija servisa.
+  </Card>
+  <Card title="wwwroot" accent="#10b981">
+    Statičke datoteke poput slika, CSS-a i skripti.
+  </Card>
+  <Card title="Components/Layout" accent="#a855f7">
+    Struktura korisničkog sučelja i raspored elemenata.
+  </Card>
+  <Card title="Controllers" accent="#f59e0b">
+    Mjesto gdje API prima HTTP zahtjeve.
+  </Card>
+  <Card title="appsettings.json" accent="#ef4444">
+    Konfiguracijske postavke projekta.
+  </Card>
+</CardGrid>
+
+## Sažetak lekcije
+
+<Note title="Najvažnije za zapamtiti" tone="amber">
+  <ul>
+    <li>
+      <strong>App</strong> je korisničko sučelje.
+    </li>
+    <li>
+      <strong>Api</strong> obrađuje zahtjeve i vraća podatke.
+    </li>
+    <li>
+      <strong>Shared</strong> služi za zajedničke modele.
+    </li>
+    <li>
+      <code>Counter</code> i <code>Weather</code> nisu greška, ali nisu dio naše
+      aplikacije.
+    </li>
+    <li>Dobar projekt od početka ima red, jasnu strukturu i smislen commit.</li>
+  </ul>
+</Note>
+
+## Samoprovjera na kraju sata
+
+<Checklist
+  items={[
+    "Imam solution AzilEdu.",
+    "U solutionu se nalaze App, Api i Shared.",
+    "App i Api mogu se pokrenuti zajedno.",
+    "Counter i Weather više nisu u navigaciji.",
+    "Mogu objasniti čemu služi svaki od tri projekta.",
+  ]}
+/>
+
+## Domaći zadatak
+
+1. Dodaj placeholder stavke u navigaciju: <code>Animals</code>, <code>Species</code>, <code>Breeds</code> i <code>Dashboard</code>.
+2. Na početnoj stranici napiši 4–6 rečenica o tome čemu služi AzilEdu.
+3. U bilježnicu ili digitalnu bilješku napiši razliku između projekata <code>App</code>, <code>Api</code> i <code>Shared</code>.
+
+<Note title="Zaključak" tone="blue">
+  U ovoj lekciji postavio si temelj cijelog projekta. To nije sporedan posao.
+  Ako je struktura dobra na početku, kasnije ćeš lakše dodavati modele, DTO
+  objekte, API kontrolere, forme i prikaze podataka bez kaosa.
+</Note>

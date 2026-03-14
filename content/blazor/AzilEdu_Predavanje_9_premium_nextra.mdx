@@ -1,0 +1,759 @@
+---
+title: "AzilEdu — Predavanje 9"
+description: "Detalji životinje iz više povezanih tablica"
+---
+
+import CodePreviewSplit from '../../components/CodePreviewSplit'
+
+<LessonHero
+  eyebrow="AzilEdu • Predavanje 9"
+  title="Detalji životinje iz više povezanih tablica"
+  subtitle="U ovoj lekciji izrađujemo stranicu detalja jedne životinje i prvi put na jednom mjestu prikazujemo podatke iz više povezanih tablica: Animal, Species, Breed i AnimalStatus."
+  badges={[
+    'Blazor Web App',
+    'EF Core relacije',
+    'MudBlazor UI',
+    'Details View'
+  ]}
+/>
+
+<InfoBox type="info" title="Zašto je ova lekcija važna?">
+Do sada smo imali prikaz popisa, unos, uređivanje i brisanje životinja. To je dobar početak, ali prava aplikacija za azil ne završava na tablici. Korisnik često želi otvoriti <strong>jednu konkretnu životinju</strong> i vidjeti njezin puni profil.
+</InfoBox>
+
+<InfoBox type="success" title="Što radimo u ovoj lekciji?">
+U ovoj lekciji izrađujemo <strong>stranicu detalja životinje</strong> koja po ID-u dohvaća jednu životinju iz baze zajedno s povezanim podacima:
+<ul>
+  <li>vrstom (<code>Species</code>)</li>
+  <li>pasminom (<code>Breed</code>)</li>
+  <li>statusom (<code>AnimalStatus</code>)</li>
+</ul>
+Na kraju lekcije učenik razumije kako jedna stranica može prikazivati podatke iz više povezanih tablica.
+</InfoBox>
+
+## Ishodi učenja
+
+Nakon ove lekcije učenik će moći:
+
+- objasniti zašto details stranica nije isto što i edit forma
+- dohvatiti jedan zapis po ID-u iz baze
+- koristiti `Include` za dohvat povezanih podataka
+- izraditi Blazor stranicu za prikaz detalja jedne životinje
+- uredno prikazati podatke kroz MudBlazor kartice, grid i oznake statusa
+- dodati navigaciju s popisa životinja prema detaljima
+
+---
+
+## 1. Zašto details stranica nije isto što i edit forma
+
+<ConceptGrid>
+  <ConceptCard title="Edit forma">
+    Služi za promjenu podataka. U fokusu su input polja, validacija i spremanje promjena.
+  </ConceptCard>
+  <ConceptCard title="Details stranica">
+    Služi za pregled profila jedne životinje. U fokusu su čitljivost, organizacija podataka i pregled povezanih informacija.
+  </ConceptCard>
+  <ConceptCard title="Zašto nam trebaju obje?">
+    Korisnik često želi samo pogledati podatke bez ulaska u uređivanje. Zato ozbiljna aplikacija ima i list view, i details view, i edit view.
+  </ConceptCard>
+</ConceptGrid>
+
+<InfoBox type="warning" title="Važno za učenike">
+Ako sve pokušamo ugurati u edit formu, aplikacija brzo postaje nepregledna. Detalji životinje trebaju biti mirna, čitljiva i pregledna stranica, a ne samo skup input polja bez uređivanja.
+</InfoBox>
+
+---
+
+## 2. Koje podatke želimo prikazati?
+
+U ovoj fazi projekta details stranica treba prikazati barem:
+
+- osnovne podatke iz tablice `Animals`
+- vrstu iz tablice `Species`
+- pasminu iz tablice `Breeds`
+- status iz tablice `AnimalStatuses`
+
+Primjeri podataka koje ćemo prikazivati:
+
+- ime životinje
+- spol
+- dob
+- datum dolaska
+- opis
+- vrstu
+- pasminu
+- status
+- eventualnu oznaku čipa ako je model već ima
+
+<Checklist
+  items={[
+    'Stranica mora dohvatiti jednu životinju po ID-u.',
+    'Povezani podaci moraju se čitati iz relacijskih tablica, ne iz hardcoded teksta.',
+    'Prikaz mora biti pregledan i dovoljno kvalitetan da kasnije na isto mjesto možemo dodati sliku, medicinske podatke i podatke o udomljenju.'
+  ]}
+/>
+
+---
+
+## 3. Podsjetnik na model nakon prošle lekcije
+
+Nakon 8. predavanja model `Animal` više nije jednostavna tablica s tekstualnim poljima za sve, nego sadrži strane ključeve i navigacijska svojstva.
+
+Primjer modela može izgledati ovako:
+
+```csharp
+public class Animal
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public DateTime ArrivalDate { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public string? ChipNumber { get; set; }
+
+    public int SpeciesId { get; set; }
+    public Species? Species { get; set; }
+
+    public int? BreedId { get; set; }
+    public Breed? Breed { get; set; }
+
+    public int AnimalStatusId { get; set; }
+    public AnimalStatus? AnimalStatus { get; set; }
+}
+```
+
+<InfoBox type="info" title="Što je ovdje novo?">
+Sada više ne prikazujemo samo obične tekstualne vrijednosti. `SpeciesId`, `BreedId` i `AnimalStatusId` pokazuju na druge tablice, a `Species`, `Breed` i `AnimalStatus` predstavljaju povezana navigacijska svojstva.
+</InfoBox>
+
+---
+
+## 4. Servis mora znati dohvatiti jednu životinju s povezanim podacima
+
+Ako već imamo `AnimalService`, sada ga proširujemo tako da može dohvatiti <strong>jednu životinju po ID-u</strong> zajedno s relacijama.
+
+Upravo je to srce ove lekcije. Ako servis ne vrati povezane podatke, details stranica neće imati što prikazati.
+
+### Primjer metode u servisu
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+public class AnimalService
+{
+    private readonly AzilEduDbContext _context;
+
+    public AnimalService(AzilEduDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Animal?> GetAnimalByIdAsync(int id)
+    {
+        return await _context.Animals
+            .Include(a => a.Species)
+            .Include(a => a.Breed)
+            .Include(a => a.AnimalStatus)
+            .FirstOrDefaultAsync(a => a.Id == id);
+    }
+}
+```
+
+<InfoBox type="warning" title="Zašto koristimo Include?">
+Bez `Include` naredbi EF Core može vratiti samo osnovni zapis iz tablice `Animals`. To znači da bi `Species`, `Breed` i `AnimalStatus` mogli ostati prazni. Zato u details prikazu izričito tražimo i povezane podatke.
+</InfoBox>
+
+<CodePreviewSplit
+  title="Dohvat jedne životinje s relacijama"
+  language="csharp"
+  image="/images/aziledu/predavanje-9/previews/service-getanimalbyid-include.webp"
+  imageAlt="Prikaz metode GetAnimalByIdAsync s Include relacijama"
+  imageCaption="Datoteka slike: service-getanimalbyid-include.webp"
+  code={`public async Task<Animal?> GetAnimalByIdAsync(int id)
+{
+    return await _context.Animals
+        .Include(a => a.Species)
+        .Include(a => a.Breed)
+        .Include(a => a.AnimalStatus)
+        .FirstOrDefaultAsync(a => a.Id == id);
+}`}
+/>
+
+---
+
+## 5. Izrada stranice `AnimalDetails.razor`
+
+Sada izrađujemo novu stranicu koja prima ID životinje kroz URL.
+
+Primjer početka stranice:
+
+```razor
+@page "/animals/details/{Id:int}"
+@inject AnimalService AnimalService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Detalji životinje</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Detalji životinje</MudText>
+```
+
+Ovdje radimo tri važne stvari:
+
+1. definiramo rutu koja prima `Id`
+2. ubacujemo servis koji dohvaća životinju
+3. pripremamo stranicu za prikaz jednog zapisa
+
+### Parametar stranice i lokalne varijable
+
+```razor
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Animal? animal;
+    private bool isLoading = true;
+}
+```
+
+<InfoBox type="info" title="Zašto koristimo nullable Animal?">
+`animal` je na početku `null` jer se podaci još nisu dohvatili iz baze. Tek nakon izvršavanja servisa dobit ćemo stvarni objekt ili zaključiti da zapis ne postoji.
+</InfoBox>
+
+---
+
+## 6. Dohvat podataka u `OnInitializedAsync`
+
+Sada stranicu spajamo sa servisom.
+
+```razor
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Animal? animal;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        animal = await AnimalService.GetAnimalByIdAsync(Id);
+        isLoading = false;
+    }
+}
+```
+
+Ovdje je logika jednostavna i jasna:
+
+- stranica primi ID iz URL-a
+- pozove servis
+- servis vrati jednu životinju s relacijama
+- prestajemo prikazivati loading stanje
+
+<InfoBox type="warning" title="Česta greška">
+Učenici ponekad zaborave da metoda mora biti <code>async</code> i da mora koristiti <code>await</code>. Druga česta greška je da zovu pogrešnu metodu servisa, npr. onu za dohvat svih životinja umjesto jedne konkretne.
+</InfoBox>
+
+---
+
+## 7. Prikaz stanja: učitavanje, nema zapisa, prikaz detalja
+
+Dobra stranica ne pretpostavlja da sve uvijek postoji. Zato uvodimo tri stanja:
+
+- podaci se učitavaju
+- zapis nije pronađen
+- zapis je uspješno pronađen
+
+### Primjer osnovnog renderiranja
+
+```razor
+@if (isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (animal is null)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+        Životinja nije pronađena.
+    </MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">@animal.Name</MudText>
+}
+```
+
+Ovaj pristup učenicima jasno pokazuje da korisničko sučelje mora znati reagirati i kada nešto pođe krivo.
+
+<CodePreviewSplit
+  title="Loading i prikaz greške ako zapis ne postoji"
+  language="razor"
+  image="/images/aziledu/predavanje-9/previews/details-loading-notfound.webp"
+  imageAlt="Prikaz loading stanja i poruke ako životinja nije pronađena"
+  imageCaption="Datoteka slike: details-loading-notfound.webp"
+  code={`@if (isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (animal is null)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+        Životinja nije pronađena.
+    </MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">@animal.Name</MudText>
+}`}
+/>
+
+---
+
+## 8. Organizacija prikaza detalja
+
+Sada dolazimo do najvažnijeg dijela lekcije: <strong>kako organizirati prikaz podataka da bude čitljiv</strong>.
+
+Ne želimo samo ispisati deset redaka jedan ispod drugog. Želimo stranicu koja izgleda kao profil životinje.
+
+### Dobar raspored može imati:
+
+- gornji dio s imenom i statusom
+- osnovne informacije u kartici
+- dodatne informacije u drugoj kartici
+- prostor za fotografiju ili placeholder
+- akcijske gumbe za povratak i uređivanje
+
+---
+
+## 9. Gornji dio stranice: ime, status i osnovne akcije
+
+Primjer gornjeg dijela:
+
+```razor
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudStack Spacing="1">
+        <MudText Typo="Typo.h4">@animal.Name</MudText>
+        <MudChip Color="Color.Primary" Variant="Variant.Filled">
+            @animal.AnimalStatus?.Name
+        </MudChip>
+    </MudStack>
+
+    <MudStack Row="true" Spacing="2">
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="GoBack">
+            Natrag
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/animals/edit/{animal.Id}")">
+            Uredi
+        </MudButton>
+    </MudStack>
+</MudStack>
+```
+
+Ovaj dio stranice korisniku odmah daje tri informacije:
+
+- koju životinju gleda
+- koji joj je status
+- koje su dvije najvažnije akcije na toj stranici
+
+<CodePreviewSplit
+  title="Header detalja životinje"
+  language="razor"
+  image="/images/aziledu/predavanje-9/previews/details-header-status-actions.webp"
+  imageAlt="Prikaz gornjeg dijela details stranice s imenom, statusom i akcijama"
+  imageCaption="Datoteka slike: details-header-status-actions.webp"
+  code={`<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudStack Spacing="1">
+        <MudText Typo="Typo.h4">@animal.Name</MudText>
+        <MudChip Color="Color.Primary" Variant="Variant.Filled">
+            @animal.AnimalStatus?.Name
+        </MudChip>
+    </MudStack>
+
+    <MudStack Row="true" Spacing="2">
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="GoBack">
+            Natrag
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/animals/edit/{animal.Id}")">
+            Uredi
+        </MudButton>
+    </MudStack>
+</MudStack>`}
+/>
+
+---
+
+## 10. Kartica s osnovnim podacima
+
+Sada u prvu karticu stavljamo podatke koji su najvažniji za svakodnevni pregled.
+
+```razor
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudText Typo="Typo.h6" Class="mb-3">Osnovni podaci</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Vrsta:</strong> @animal.Species?.Name</MudText>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Pasmina:</strong> @(animal.Breed?.Name ?? "Nije odabrana")</MudText>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Spol:</strong> @animal.Gender</MudText>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Dob:</strong> @animal.Age</MudText>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Datum dolaska:</strong> @animal.ArrivalDate.ToShortDateString()</MudText>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudText><strong>Broj čipa:</strong> @(string.IsNullOrWhiteSpace(animal.ChipNumber) ? "Nije unesen" : animal.ChipNumber)</MudText>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+```
+
+<InfoBox type="info" title='Zašto koristimo `??` i provjere praznog teksta?'>
+U stvarnim aplikacijama svi podaci nisu uvijek popunjeni. Zato details stranica mora znati prikazati i situacije u kojima nešto nije odabrano ili uneseno. To je profesionalniji pristup od prikaza praznih vrijednosti ili ružnih grešaka.
+</InfoBox>
+
+---
+
+## 11. Kartica s opisom i dodatnim informacijama
+
+Želimo odvojiti opis od osnovnih tehničkih podataka. To stranicu čini preglednijom.
+
+```razor
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudText Typo="Typo.h6" Class="mb-3">Opis i napomene</MudText>
+
+    <MudText>
+        @(string.IsNullOrWhiteSpace(animal.Description)
+            ? "Opis još nije unesen."
+            : animal.Description)
+    </MudText>
+</MudPaper>
+```
+
+Ovo kasnije lako možemo proširiti medicinskim bilješkama, informacijama o ponašanju ili napomenama osoblja azila.
+
+---
+
+## 12. Placeholder za fotografiju životinje
+
+U ovoj lekciji još ne radimo upload slike, ali je pametno odmah pripremiti mjesto za prikaz fotografije. Tako učenici vide da details stranica može rasti bez rušenja postojećeg rasporeda.
+
+Primjer placeholder kartice:
+
+```razor
+<MudPaper Class="pa-4 mb-4 d-flex flex-column align-center justify-center" Elevation="1" Style="min-height: 280px; border: 2px dashed #cbd5e1;">
+    <MudIcon Icon="@Icons.Material.Filled.Pets" Size="Size.Large" Class="mb-2" />
+    <MudText Typo="Typo.subtitle1">Ovdje će biti fotografija životinje</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        U sljedećim lekcijama dodat ćemo upload i prikaz slike.
+    </MudText>
+</MudPaper>
+```
+
+**Predložena slika za dokumentaciju:**
+- naziv datoteke: `details-photo-placeholder.webp`
+- lokacija: `/images/aziledu/predavanje-9/details-photo-placeholder.webp`
+- opis slike: prikaz details stranice s praznim prostorom za buduću fotografiju životinje
+
+---
+
+## 13. Dvostupčani raspored stranice
+
+Kako bi details stranica izgledala ozbiljnije, možemo koristiti raspored u kojem je:
+
+- lijevo fotografija ili placeholder
+- desno osnovni podaci
+- ispod dodatni opis
+
+Primjer:
+
+```razor
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4 mb-4 d-flex flex-column align-center justify-center" Elevation="1" Style="min-height: 280px; border: 2px dashed #cbd5e1;">
+            <MudIcon Icon="@Icons.Material.Filled.Pets" Size="Size.Large" Class="mb-2" />
+            <MudText Typo="Typo.subtitle1">Ovdje će biti fotografija životinje</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Osnovni podaci</MudText>
+            <!-- podaci -->
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+```
+
+<CodePreviewSplit
+  title="Osnovni layout details stranice"
+  language="razor"
+  image="/images/aziledu/predavanje-9/previews/details-layout-grid.webp"
+  imageAlt="Dvostupčani raspored details stranice s prostorom za sliku i osnovne podatke"
+  imageCaption="Datoteka slike: details-layout-grid.webp"
+  code={`<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4 mb-4 d-flex flex-column align-center justify-center" Elevation="1" Style="min-height: 280px; border: 2px dashed #cbd5e1;">
+            <MudIcon Icon="@Icons.Material.Filled.Pets" Size="Size.Large" Class="mb-2" />
+            <MudText Typo="Typo.subtitle1">Ovdje će biti fotografija životinje</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Osnovni podaci</MudText>
+            <!-- podaci -->
+        </MudPaper>
+    </MudItem>
+</MudGrid>`}
+/>
+
+---
+
+## 14. Puna primjer stranice
+
+Ispod je jedan objedinjeni primjer details stranice. Učenicima je korisno vidjeti cijelu sliku na jednom mjestu.
+
+```razor
+@page "/animals/details/{Id:int}"
+@using AzilEdu.Shared.Models
+@inject AnimalService AnimalService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Detalji životinje</PageTitle>
+
+@if (isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (animal is null)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+        Životinja nije pronađena.
+    </MudAlert>
+}
+else
+{
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.h4">@animal.Name</MudText>
+            <MudChip Color="Color.Primary" Variant="Variant.Filled">
+                @animal.AnimalStatus?.Name
+            </MudChip>
+        </MudStack>
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="GoBack">
+                Natrag
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/animals/edit/{animal.Id}")">
+                Uredi
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4 mb-4 d-flex flex-column align-center justify-center" Elevation="1" Style="min-height: 280px; border: 2px dashed #cbd5e1;">
+                <MudIcon Icon="@Icons.Material.Filled.Pets" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.subtitle1">Ovdje će biti fotografija životinje</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Fotografije uvodimo u sljedećim lekcijama.
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Osnovni podaci</MudText>
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Vrsta:</strong> @animal.Species?.Name</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Pasmina:</strong> @(animal.Breed?.Name ?? "Nije odabrana")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Spol:</strong> @animal.Gender</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Dob:</strong> @animal.Age</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Datum dolaska:</strong> @animal.ArrivalDate.ToShortDateString()</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText><strong>Broj čipa:</strong> @(string.IsNullOrWhiteSpace(animal.ChipNumber) ? "Nije unesen" : animal.ChipNumber)</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">Opis i napomene</MudText>
+        <MudText>
+            @(string.IsNullOrWhiteSpace(animal.Description)
+                ? "Opis još nije unesen."
+                : animal.Description)
+        </MudText>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Animal? animal;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        animal = await AnimalService.GetAnimalByIdAsync(Id);
+        isLoading = false;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/animals");
+    }
+}
+```
+
+---
+
+## 15. Dodavanje gumba za detalje u popis životinja
+
+Details stranica nema smisla ako korisnik ne može lako doći do nje.
+
+Zato u tablici ili karticama s popisa životinja dodajemo gumb ili link.
+
+Primjer u `MudTable` retku:
+
+```razor
+<MudTd DataLabel="Akcije">
+    <MudButton Variant="Variant.Text" Color="Color.Info" Href="@($"/animals/details/{context.Id}")">
+        Detalji
+    </MudButton>
+    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/animals/edit/{context.Id}")">
+        Uredi
+    </MudButton>
+</MudTd>
+```
+
+<CodePreviewSplit
+  title="Dodavanje gumba Detalji u tablicu"
+  language="razor"
+  image="/images/aziledu/predavanje-9/previews/table-details-button.webp"
+  imageAlt="Prikaz gumba Detalji u tablici životinja"
+  imageCaption="Datoteka slike: table-details-button.webp"
+  code={`<MudTd DataLabel="Akcije">
+    <MudButton Variant="Variant.Text" Color="Color.Info" Href="@($"/animals/details/{context.Id}")">
+        Detalji
+    </MudButton>
+    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/animals/edit/{context.Id}")">
+        Uredi
+    </MudButton>
+</MudTd>`}
+/>
+
+---
+
+## 16. Što učenici moraju razumjeti nakon ove lekcije
+
+<StepGrid>
+  <StepCard title="1. Jedna stranica ne mora prikazivati samo jednu tablicu">
+    Details prikaz životinje koristi podatke iz više povezanih tablica. To je temelj ozbiljnijih poslovnih aplikacija.
+  </StepCard>
+  <StepCard title="2. Servis priprema podatke za prikaz">
+    Stranica ne smije sama rješavati sve detalje baze. Servis mora dohvatiti i povezane podatke koji su potrebni za prikaz.
+  </StepCard>
+  <StepCard title="3. UI mora imati jasna stanja">
+    Učitavanje, nepostojeći zapis i uspješan prikaz tri su osnovna stanja koje korisničko sučelje mora znati pokazati.
+  </StepCard>
+</StepGrid>
+
+---
+
+## 17. Najčešće greške
+
+<InfoBox type="warning" title="Greška 1 — Zaboravljen Include">
+Ako učenik ne doda `Include`, details stranica može prikazivati praznu vrstu, pasminu ili status iako su strani ključevi ispravno postavljeni.
+</InfoBox>
+
+<InfoBox type="warning" title="Greška 2 — Pogrešna ruta ili ID">
+Ako ruta nije ispravna ili gumb šalje pogrešan ID, stranica neće pronaći zapis.
+</InfoBox>
+
+<InfoBox type="warning" title="Greška 3 — Sve stavljeno u jednu veliku karticu">
+Ako se svi podaci naguraju bez rasporeda, details stranica gubi smisao. Cilj je preglednost, ne samo funkcionalnost.
+</InfoBox>
+
+<InfoBox type="warning" title="Greška 4 — Miješanje details i edit logike">
+Details stranica služi pregledu. Ako učenik odmah u nju krene dodavati hrpu input polja, vraćamo se na neuredan pristup koji smo htjeli izbjeći.
+</InfoBox>
+
+---
+
+## 18. Vježbe za učenike
+
+### Zadatak 1
+Izradi stranicu detalja koja prikazuje:
+- ime životinje
+- vrstu
+- pasminu
+- status
+- spol
+- dob
+- datum dolaska
+
+### Zadatak 2
+Dodaj prikaz opisa i poruku “Opis još nije unesen” ako je polje prazno.
+
+### Zadatak 3
+U popisu životinja dodaj gumb **Detalji** koji vodi na novu stranicu.
+
+### Zadatak 4
+Ako zapis ne postoji, prikaži korisniku jasnu poruku greške.
+
+### Zadatak 5
+Dodaj placeholder prostor za fotografiju koji ćemo kasnije zamijeniti pravom slikom.
+
+---
+
+## 19. Domaći rad
+
+Za domaći učenici trebaju:
+
+1. urediti details stranicu tako da izgleda pregledno i profesionalno
+2. prilagoditi boje statusa, npr.:
+   - dostupna → zelena
+   - rezervirana → narančasta
+   - udomljena → plava ili siva
+3. dodati još barem jedno polje po vlastitom izboru i prikazati ga na details stranici
+4. testirati radi li stranica ispravno za više različitih zapisa iz baze
+
+---
+
+## 20. Sažetak lekcije
+
+<LessonSummary
+  title="Što smo napravili u 9. lekciji?"
+  points={[
+    'Izradili smo stranicu detalja jedne životinje.',
+    'Dohvaćamo jedan zapis po ID-u iz baze.',
+    'Prikazujemo podatke iz više povezanih tablica: Animal, Species, Breed i AnimalStatus.',
+    'Dodali smo loading stanje, prikaz greške i pregledan raspored sadržaja.',
+    'Povezali smo popis životinja s details prikazom.',
+    'Pripremili smo prostor za budući upload i prikaz fotografije.'
+  ]}
+/>
+
+<InfoBox type="success" title="Što slijedi dalje?">
+U sljedećoj lekciji prirodan nastavak je <strong>fotografija životinje</strong>: upload slike, spremanje putanje i prikaz slike na listi i na details stranici.
+</InfoBox>
