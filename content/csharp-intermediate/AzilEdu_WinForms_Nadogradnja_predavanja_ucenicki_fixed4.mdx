@@ -1,0 +1,249 @@
+---
+title: "AzilEdu WinForms — Nadogradnja nakon projekta"
+description: "Materijal za nastavu (WinForms nadogradnja) u MDX formatu."
+---
+
+AzilEdu WinForms — Nadogradnja nakon projekta
+
+Učenički materijali • Enum/Repository/Validacija • priprema za Blazor
+
+Ovaj paket ima tri predavanja. Na satu radite kratke vođene vježbe, a doma nadograđujete svoju Azil aplikaciju. Cilj je da nakon WinFormsa razumijete obrasce koji se kasnije koriste u Blazoru (slojevi, ugovori, validacija).
+
+# AzilEdu WinForms — Predavanje 1
+
+Učenički materijal • vođena lekcija s objašnjenjima
+
+| Trajanje | 120 minuta |
+| --- | --- |
+| Današnji cilj | Uvesti Status kao enum i povezati Zivotinja s tablicom/listom Vrsta preko VrstaId. |
+| Što ćete imati na kraju | Možeš dodati životinju s odabranom vrstom iz ComboBoxa (punjenog iz liste Vrsta) i statusom iz enum vrijednosti. |
+
+## 1. Što danas radimo i zašto je to važno
+
+Danas prvi put radimo 'pravo modeliranje podataka'. Status životinje napravit ćemo kao enum jer je to fiksan skup vrijednosti. Vrstu životinje odvajamo u zasebnu tablicu/listu jer se ona može proširivati. Ovo je korak koji će vam kasnije biti ključan kad pređemo na bazu i Blazor + API.
+
+## 2. Pojmovi koje morate razumjeti prije rada
+
+- Enum
+Tip koji sadrži fiksan skup vrijednosti (npr. status). Ne dodaje ga korisnik nego programer.
+
+- Tablica/lista (Vrsta)
+Popis objekata koji se može proširivati. Korisnik može dodati novu vrstu.
+
+- Id
+Jedinstveni identifikator zapisa u 'tablici'.
+
+- VrstaId (strani ključ)
+Broj/ključ koji u životinji pokazuje na Vrsta.Id.
+
+- DisplayMember/ValueMember
+Što korisnik vidi u ComboBoxu (naziv) i koja se vrijednost stvarno sprema (Id).
+
+## 3. Koraci rada
+
+### Korak 1 — Dodaj enum StatusZivotinje
+
+Što radiš: Napravi enum StatusZivotinje i u klasi Zivotinja promijeni Status sa stringa na taj enum.
+
+Zašto to radiš: Enum sprječava tipfelere i osigurava da status uvijek bude jedna od dozvoljenih vrijednosti.
+
+- Provjeri:
+- U kodu više nema usporedbe statusa preko stringova.
+### Korak 2 — Napravi klasu Vrsta i popis vrsta
+
+Što radiš: Napravi klasu Vrsta (Id, Naziv) i početni `List&lt;Vrsta&gt;` s nekoliko vrijednosti.
+
+Zašto to radiš: Vrsta se mora moći proširivati bez promjene koda; zato je odvajamo kao 'tablicu'.
+
+- Provjeri:
+- Svaka vrsta ima jedinstven Id.
+### Korak 3 — Dodaj VrstaId u Zivotinja
+
+Što radiš: U klasu Zivotinja dodaj VrstaId. Kad spremaš životinju, spremaj VrstaId, ne naziv vrste.
+
+Zašto to radiš: Id ostaje stabilan i veza se ne raspada kad netko promijeni naziv vrste.
+
+- Provjeri:
+- Zivotinja ne sadrži string naziv vrste.
+### Korak 4 — Napuni ComboBox vrstama
+
+Što radiš: Postavi DataSource ComboBoxa na `List&lt;Vrsta&gt;` i namjesti DisplayMember='Naziv', ValueMember='Id'.
+
+Zašto to radiš: Korisnik treba vidjeti naziv, a program treba spremiti Id.
+
+- Provjeri:
+- SelectedValue vraća Id, a u UI se prikazuje Naziv.
+### Korak 5 — Prikaži naziv vrste u listi životinja
+
+Što radiš: Kad prikazuješ životinju, pronađi Vrsta.Naziv na temelju VrstaId (lookup u listi vrsta).
+
+Zašto to radiš: Korisnik želi čitljiv prikaz, ali mi interno čuvamo Id.
+
+- Provjeri:
+- U listi/piše naziv vrste, ne samo broj VrstaId.
+## 4. Što je važno zapamtiti
+
+- Status je enum jer je stabilan i ne mijenja ga korisnik.
+- Vrsta je tablica/lista jer se može proširivati (korisnik dodaje nove vrste).
+- Životinja sprema VrstaId (ne Naziv).
+- ComboBox: DisplayMember prikazuje Naziv, ValueMember sprema Id.
+## 5. Provjera na kraju sata
+
+- Mogu objasniti razliku enum vs tablica/lista.
+- Znam čemu služi VrstaId.
+- ComboBox mi je punjen iz liste objekata (ne iz hardkodiranih stringova).
+## 6. Domaći zadatak
+
+Nadogradi Azil: napravi dodavanje novih vrsta (lista Vrsta) i puni ComboBox iz te liste. Životinja mora spremati VrstaId. Bonus: zabrani brisanje vrste ako je neka životinja koristi.
+
+# AzilEdu WinForms — Predavanje 2
+
+Učenički materijal • vođena lekcija s objašnjenjima
+
+| Trajanje | 120 minuta |
+| --- | --- |
+| Današnji cilj | Uvesti IAnimalRepository/ISpeciesRepository i service sloj te refaktorirati UI da poziva service metode. |
+| Što ćete imati na kraju | UI forme su jednostavne (uzmu input, pozovu service, osvježe prikaz), a pravila i rad s podacima su u servisima/repozitorijima. |
+
+## 1. Što danas radimo i zašto je to važno
+
+Danas učimo kako se radi aplikacija koja se može održavati. Forma (UI) ne smije sadržavati poslovna pravila ni detalje spremanja podataka. Uvest ćemo sučelja (ugovore) za rad s podacima, napraviti repozitorij koji čuva podatke i servis koji provodi pravila. Ovo je direktna priprema za Blazor + API.
+
+## 2. Pojmovi koje morate razumjeti prije rada
+
+- Sučelje (interface)
+Ugovor: popis metoda koje neka klasa mora imati.
+
+- Repository
+Klasa koja zna spremiti i dohvatiti podatke (kako).
+
+- Service
+Klasa koja provodi poslovna pravila (što smijemo napraviti).
+
+- Dependency
+Ovisnost: service ovisi o repo sučelju, ne o konkretnoj klasi.
+
+## 3. Koraci rada
+
+### Korak 1 — Definiraj sučelja repozitorija
+
+Što radiš: Napravi IAnimalRepository i ISpeciesRepository s metodama GetAll/Add/Update/Delete (i po potrebi GetById).
+
+Zašto to radiš: UI i service trebaju 'ugovor' kako pričati s podacima, bez da znaju gdje su podaci spremljeni.
+
+- Provjeri:
+- Sučelja nemaju implementaciju (samo potpise metoda).
+### Korak 2 — Implementiraj InMemory repozitorij
+
+Što radiš: Napravi klase koje implementiraju sučelja i interno koriste `List&lt;&gt;` za čuvanje podataka.
+
+Zašto to radiš: Najlakše je za početak i omogućuje testiranje bez datoteka/baze.
+
+- Provjeri:
+- CRUD radi: dodavanje, izmjena, brisanje, dohvat.
+### Korak 3 — Napravi service sloj
+
+Što radiš: Napravi AnimalService i SpeciesService. U njih stavi pravila (npr. ime obavezno, zabrana brisanja vrste koja se koristi).
+
+Zašto to radiš: Pravila moraju biti na jednom mjestu, ne u formi. Sutra ćemo isti service koristiti u API-ju.
+
+- Provjeri:
+- Forma ne sadrži poslovna pravila.
+### Korak 4 — Refaktoriraj formu da koristi servise
+
+Što radiš: U Click događajima forma samo čita input, pozove service i osvježi listu/grid.
+
+Zašto to radiš: Tako UI ostaje jednostavan, a logika se može testirati i ponovno koristiti.
+
+- Provjeri:
+- Nema direktnog rada s `List`&lt;&gt;`` podacima mimo servisa.
+## 4. Što je važno zapamtiti
+
+- Sučelje = ugovor, implementacija = detalj.
+- Repository zna 'kako' do podataka, service zna 'što smijemo'.
+- UI ne smije sadržavati poslovna pravila.
+- Ovo je isti obrazac koji ćete koristiti u Blazor + API.
+## 5. Provjera na kraju sata
+
+- Mogu objasniti razliku repo vs service.
+- Moja forma ne sprema direktno podatke, nego poziva service.
+- Znam gdje pišem pravila (service), a gdje čuvam podatke (repo).
+## 6. Domaći zadatak
+
+Nadogradi Azil: uvedi IAnimalRepository i ISpeciesRepository, InMemory implementacije i AnimalService/SpeciesService. Refaktoriraj UI da sve radi preko servisa. Dodaj pravilo: ne može se obrisati vrsta ako je koristi neka životinja.
+
+# AzilEdu WinForms — Predavanje 3
+
+Učenički materijal • vođena lekcija s objašnjenjima
+
+| Trajanje | 120 minuta |
+| --- | --- |
+| Današnji cilj | Dodati DataAnnotations na modele i u service sloju validirati objekt prije spremanja. |
+| Što ćete imati na kraju | Kad korisnik unese neispravne podatke, aplikacija ne sprema i prikaže sve greške odjednom. |
+
+## 1. Što danas radimo i zašto je to važno
+
+Danas učimo pravilnu validaciju. Ne želimo da korisnik može spremiti neispravne podatke (prazno ime, dob izvan raspona…). Umjesto da svaka forma ima svoje if-ove, pravila ćemo napisati na modelu kroz DataAnnotations, a service će ih provoditi. Ovo je isto što ćete kasnije koristiti u Blazoru (EditForm + validacija).
+
+## 2. Pojmovi koje morate razumjeti prije rada
+
+- DataAnnotations
+Atributi iz System.ComponentModel.DataAnnotations koji definiraju pravila (Required, Range, StringLength…).
+
+- ValidationResult
+Opis jedne greške validacije.
+
+- Validator.TryValidateObject
+Metoda koja provjerava objekt prema atributima.
+
+- ErrorProvider
+WinForms komponenta za prikaz greške uz polje.
+
+## 3. Koraci rada
+
+### Korak 1 — Dodaj DataAnnotations na modele
+
+Što radiš: Na Zivotinja dodaj [Required] za Ime, [Range] za Dob; na Vrsta dodaj [Required] i [StringLength] za Naziv.
+
+Zašto to radiš: Pravila trebaju biti uz podatke, da vrijede u cijeloj aplikaciji (ne samo u jednoj formi).
+
+- Provjeri:
+- Ako je Ime prazno, validacija mora vratiti grešku.
+### Korak 2 — Napravi metodu Validate(objekt)
+
+Što radiš: Napravi helper metodu koja koristi Validator.TryValidateObject i vraća `List`&lt;string&gt;`` poruka grešaka.
+
+Zašto to radiš: Želimo jedno mjesto koje zna provjeriti objekt i dati sve greške.
+
+- Provjeri:
+- Za neispravan objekt dobiješ više poruka, ne samo jednu.
+### Korak 3 — U Service sloju provjeri validaciju prije spremanja
+
+Što radiš: U AnimalService.Add/Update prvo pozovi Validate. Ako ima grešaka, vrati rezultat s greškama i ne zovi repo.
+
+Zašto to radiš: Repo ne smije spremiti loše podatke. Service kontrolira pravila.
+
+- Provjeri:
+- Kad validacija padne, podaci se ne mijenjaju.
+### Korak 4 — Prikaži greške u UI-u
+
+Što radiš: U formi prikaži greške u jednom MessageBoxu (svaka u novi red) ili ErrorProviderom uz polja.
+
+Zašto to radiš: Korisnik mora jasno vidjeti što treba popraviti.
+
+- Provjeri:
+- Ne prikazuješ 5 MessageBoxova zaredom.
+## 4. Što je važno zapamtiti
+
+- Validacija je pravilo podataka (model/service), UI samo prikazuje greške.
+- DataAnnotations su standard i koristit ćeš ih i u Blazoru.
+- Repo se ne poziva ako je objekt nevaljan.
+- Greške se prikazuju sve odjednom.
+## 5. Provjera na kraju sata
+
+- Znam navesti barem 3 DataAnnotations atributa i čemu služe.
+- Znam gdje se validacija poziva (service).
+- UI mi prikazuje sve greške odjednom.
+## 6. Domaći zadatak
+
+Nadogradi Azil: dodaj DataAnnotations na Zivotinja i Vrsta, uvedi validaciju u service prije spremanja i prikaži greške korisniku.

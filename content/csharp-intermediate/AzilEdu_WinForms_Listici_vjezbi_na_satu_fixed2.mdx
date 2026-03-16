@@ -1,0 +1,102 @@
+---
+title: "Listići s vježbama (za sat)"
+description: "Materijal za nastavu (WinForms nadogradnja) u MDX formatu."
+---
+
+Listići s vježbama (za sat)
+
+Zadatak + očekivani output • nije direktno vezano za Azil, ali koristi iste koncepte
+
+Upute: Rješavaj u parovima. Nakon svake vježbe usporedi rezultat s očekivanim outputom. Ako se razlikuje, pronađi razlog.
+
+# Predavanje 1 — Enum + 'tablica' (lista) + lookup po Id
+
+## Vježba 1A — Enum status narudžbe
+
+Cilj: Razumjeti enum i promjenu vrijednosti bez stringova
+
+### Zadatak
+
+1. Napravi `enum OrderStatus { New, Paid, Shipped, Cancelled }`.
+1. Napravi `class Order { int Id; string Customer; OrderStatus Status; }`.
+1. Kreiraj 5 narudžbi s različitim statusima i ispiši ih u konzolu u formatu: Id - Customer - Status.
+1. Promijeni status narudžbe s Id=3 u Shipped i ponovo ispiši sve narudžbe.
+### Očekivani output
+
+> U ispisu nakon promjene, narudžba Id=3 mora imati Status=Shipped. Nigdje se ne smiju koristiti stringovi tipa "Paid".
+
+## Vježba 1B — Proizvodi i kategorije (KategorijaId)
+
+Cilj: Razumjeti 'tablicu' Kategorija i vezu preko Id
+
+### Zadatak
+
+1. Napravi `class Category { int Id; string Name; }` i listu kategorija (npr. 1:Hrana, 2:Piće, 3:Oprema).
+1. Napravi `class Product { string Name; int CategoryId; }` i listu proizvoda (npr. 'Kibble', 1).
+1. Ispiši sve proizvode kao: ProductName - CategoryName (CategoryName pronađi lookupom po CategoryId, bez LINQ-a).
+1. Dodaj novu kategoriju (4: Igračke) i novi proizvod koji je koristi te ponovo ispiši.
+### Očekivani output
+
+> Svaki proizvod mora biti ispisan s nazivom kategorije, npr. 'Kibble - Hrana'. Novi proizvod mora pokazati 'Igračke'.
+
+# Predavanje 2 — Sučelja + Repository + Service
+
+## Vježba 2A — Notes (sučelje + in-memory repo)
+
+Cilj: Razumjeti interface kao ugovor i odvojiti pohranu od logike
+
+### Zadatak
+
+1. Definiraj sučelje `INotesRepository` s metodama: `List<string> GetAll()`, `void Add(string note)`, `void DeleteAt(int index)`. 
+1. Implementiraj InMemoryNotesRepository (interno `List<string>`).
+1. Napravi NotesService koji koristi `INotesRepository` i ima metodu `AddNote(string note)` koja odbija praznu bilješku.
+1. U konzoli: dodaj 3 bilješke (jedna neka bude prazna) i ispiši sve bilješke s indeksima.
+### Očekivani output
+
+> Prazna bilješka se ne smije dodati. Ispis mora sadržavati samo 2 bilješke, npr. '0: ...', '1: ...'.
+
+## Vježba 2B — Bankovni račun (service pravilo)
+
+Cilj: Razumjeti da service provodi pravila, repo čuva podatke
+
+### Zadatak
+
+1. Napravi `class Account { int Id; string Owner; decimal Balance; }`.
+1. Definiraj IAccountRepository: GetById, Update, GetAll.
+1. Implementiraj InMemoryAccountRepository.
+1. Napravi AccountService s metodom Withdraw(int id, decimal amount) koja ne dopušta da Balance postane negativan.
+1. Test: pokušaj podići više nego što ima na računu i ispiši rezultat (uspjeh/neuspjeh + stanje).
+### Očekivani output
+
+> Kad pokušaš podići previše, metoda mora odbiti transakciju i stanje računa ostaje nepromijenjeno.
+
+# Predavanje 3 — DataAnnotations validacija
+
+## Vježba 3A — Student registracija (DataAnnotations)
+
+Cilj: Naučiti dodati atribute i dobiti listu grešaka
+
+### Zadatak
+
+1. Napravi klasu Student s atributima: [Required] Name, [EmailAddress] Email, [Range(15, 99)] Age.
+1. Napravi metodu Validate(object obj) koja vraća `List<string>` poruka greške koristeći Validator.TryValidateObject.
+1. Testiraj tri slučaja: (1) sve prazno, (2) krivi email, (3) dob 10.
+1. Za svaki slučaj ispiši sve greške (svaka u novi red).
+### Očekivani output
+
+> Slučaj (1) mora vratiti barem grešku za Name i Email. Slučaj (2) mora vratiti grešku za Email format. Slučaj (3) mora vratiti grešku za raspon dobi.
+
+## Vježba 3B — Service ne smije zvati repo kad validacija padne
+
+Cilj: Učvrstiti tok: UI → service (validacija) → repo
+
+### Zadatak
+
+1. Napravi `class Item { [Required] string Name; }`.
+1. Napravi IItemRepository s Add(Item i) i Count().
+1. Napravi InMemoryItemRepository.
+1. Napravi ItemService.Add(Item i) koji prvo validira; ako nije valjano, vrati errors i ne zovi repo.
+1. Test: pokušaj dodati Item s praznim Name. Ispiši repo.Count prije i poslije.
+### Očekivani output
+
+> Count prije i poslije mora ostati isti (npr. 0). Service mora vratiti barem jednu grešku.
