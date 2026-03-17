@@ -107,7 +107,7 @@ Nakon ove lekcije trebao bi moći:
 
 ## 1. Zašto nam ovo treba
 
-Na prošlom satu napravili ste solution s tri projekta: **App**, **Api** i **Shared**. Tehnički, projekt postoji i može se pokrenuti. Ali to još nije aplikacija koja djeluje stvarno.
+Na prošlom satu napravio si solution s tri projekta: **App**, **Api** i **Shared**. Tehnički, projekt postoji i može se pokrenuti. Ali to još nije aplikacija koja djeluje kao stvaran sustav.
 
 Korisnik koji otvori sustav za azil očekuje:
 
@@ -297,8 +297,8 @@ Sada uređujemo navigaciju. Navigacija treba odmah pokazati od kojih se modula a
 - `Match="NavLinkMatch.All"` koristi se na početnoj stranici kako bi `/` bio pravilno označen
 
 <Callout tone="warn" title="Tipična pogreška">
-  Učenici često dodaju link u navigaciju, ali ne naprave pripadajuću stranicu.  
-  Rezultat je klik koji vodi na praznu ili nepostojeću rutu.
+  Pripazi da svaki link ima svoju pripadajuću stranicu.  
+  U suprotnom će klik voditi na praznu ili nepostojeću rutu.
 </Callout>
 
 ---
@@ -399,7 +399,7 @@ Početna stranica treba objasniti što je AzilEdu i što ćemo kroz tečaj gradi
 - dati kontekst korisniku
 - pokazati da projekt ima smislen smjer
 - odmah predstaviti module koje ćemo kasnije razvijati
-- učeniku pomoći da razumije zašto solution ima odvojene projekte
+- pomoći da jasnije razumiješ zašto solution ima odvojene projekte
 
 ---
 
@@ -418,14 +418,7 @@ Ako si prethodne korake napravio dobro, trebao bi vidjeti:
 
 ---
 
-## 11. Što ste danas zapravo naučili u setup dijelu
-
-- kako se u Blazor projekt uvodi UI biblioteka
-- što je layout i čemu služi
-- kako navigacija pomaže organizaciji aplikacije
-- kako projekt počinje dobivati oblik pravog sustava
-
-## 12. Domaći zadatak nakon setup dijela
+## 11. Domaći zadatak nakon setup dijela
 
 - dodaj u navigaciju `Notes` i `Medical Records`
 - napravi placeholder stranice za oba modula
@@ -436,7 +429,7 @@ Ako si prethodne korake napravio dobro, trebao bi vidjeti:
 
 # B. Razumijevanje MudBlazora i osnovnih komponenti
 
-## 13. Što je MudBlazor
+## 12. Što je MudBlazor
 
 MudBlazor je biblioteka UI komponenti za Blazor.
 
@@ -452,7 +445,7 @@ Primjeri komponenti koje koristiš:
 - `MudDrawer`
 - `MudAppBar`
 
-## 14. Zašto koristimo MudBlazor
+## 13. Zašto koristimo MudBlazor
 
 Koristimo ga zato što:
 
@@ -468,7 +461,7 @@ Koristimo ga zato što:
   On gradi <strong>korisničko sučelje</strong>.
 </Callout>
 
-## 15. Što je komponenta
+## 14. Što je komponenta
 
 Komponenta je ponovno iskoristiv dio korisničkog sučelja.
 
@@ -489,7 +482,7 @@ Kad napišeš:
 
 ti ne pišeš “običan HTML gumb”, nego koristiš gotovu komponentu koja već zna kako se ponašati i kako izgledati.
 
-## 16. Kako čitati komponentu
+## 15. Kako čitati komponentu
 
 Kad vidiš komponentu, čitaj ju ovim redom:
 
@@ -515,7 +508,7 @@ Primjer:
 
 ---
 
-## 17. Utility klase – što znači `pa-4`
+## 16. Utility klase – što znači `pa-4`
 
 MudBlazor često koristi utility klase za razmake.
 
@@ -527,7 +520,7 @@ MudBlazor često koristi utility klase za razmake.
 
 Dakle `pa-4` dodaje unutarnji razmak na sve strane.
 
-### 17.1 Druge slične klase
+### 11.1 Druge slične klase
 
 - `pa-2` = padding na sve strane, manji razmak
 - `pa-6` = padding na sve strane, veći razmak
@@ -537,7 +530,7 @@ Dakle `pa-4` dodaje unutarnji razmak na sve strane.
 - `ml-4` = margin left
 - `mr-4` = margin right
 
-### 17.2 Padding po smjerovima
+### 11.2 Padding po smjerovima
 
 - `pt-4` = padding top
 - `pb-4` = padding bottom
@@ -546,14 +539,14 @@ Dakle `pa-4` dodaje unutarnji razmak na sve strane.
 - `px-4` = horizontalni padding
 - `py-4` = vertikalni padding
 
-### 17.3 Margin klase
+### 11.3 Margin klase
 
 - `mt-4` = razmak odozgo
 - `mb-4` = razmak odozdo
 - `mx-4` = horizontalni vanjski razmak
 - `my-4` = vertikalni vanjski razmak
 
-<Callout tone="info" title="Kako ovo objašnjavati učenicima">
+<Callout tone="info" title="Kako ovo objasniti jasno i jednostavno">
   Ne moraš naučiti sve utility klase napamet prvi dan. Bitno je razumjeti logiku:
   <ul>
     <li><code>p</code> = unutarnji razmak</li>
@@ -572,7 +565,7 @@ Dakle `pa-4` dodaje unutarnji razmak na sve strane.
   <code>public/images/aziledu/predavanje-2/previews/</code>
 </Callout>
 
-## 18. Komponenta `MudText`
+## 17. Komponenta `MudText`
 
 `MudText` služi za prikaz teksta.  
 Koristimo ga za:
@@ -582,7 +575,7 @@ Koristimo ga za:
 - obični tekst
 - istaknute tekstualne blokove
 
-### 18.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudText — osnovni primjer'
@@ -592,7 +585,7 @@ Koristimo ga za:
   code={`<MudText Typo="Typo.h4">Species</MudText>`}
 />
 
-### 18.2 Najčešće `Typo` vrijednosti
+### 11.2 Najčešće `Typo` vrijednosti
 
 - `Typo.h1` do `Typo.h6` = naslovi
 - `Typo.subtitle1` i `Typo.subtitle2` = podnaslovi
@@ -601,7 +594,7 @@ Koristimo ga za:
 
 <CodePreviewSplit
   title='MudText — usporedba Typo vrijednosti'
-  description='Koristi isti tekst s različitim Typo postavkama kako bi učenici vidjeli promjenu veličine i naglaska.'
+  description='Koristi isti tekst s različitim Typo postavkama kako bi odmah vidio kako se mijenjaju veličina, hijerarhija i vizualni naglasak.'
   language="razor"
   fileName="mudtext-typo-varijante.webp"
   code={`<MudStack Spacing="1">
@@ -612,7 +605,7 @@ Koristimo ga za:
 </MudStack>`}
 />
 
-### 18.3 Atribut `Color`
+### 11.3 Atribut `Color`
 
 `Color` određuje boju teksta.
 
@@ -637,11 +630,11 @@ Najčešće vrijednosti:
 </MudStack>`}
 />
 
-### 18.4 Atribut `GutterBottom`
+### 11.4 Atribut `GutterBottom`
 
 `GutterBottom="true"` dodaje razmak ispod teksta. To je korisno za naslove, jer odjeljuje naslov od sadržaja ispod njega.
 
-### 18.5 Atribut `Align`
+### 11.5 Atribut `Align`
 
 Određuje poravnanje teksta.
 
@@ -668,7 +661,7 @@ Vrijednosti:
 
 ---
 
-## 19. Komponenta `MudPaper`
+## 18. Komponenta `MudPaper`
 
 `MudPaper` je površina, kartica ili blok koji vizualno odvaja dio sadržaja.
 
@@ -678,7 +671,7 @@ Koristimo ga kada želimo:
 - napraviti karticu
 - odvojiti dio stranice od ostatka sadržaja
 
-### 19.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudPaper — osnovni primjer'
@@ -691,7 +684,7 @@ Koristimo ga kada želimo:
 </MudPaper>`}
 />
 
-### 19.2 Atribut `Class`
+### 11.2 Atribut `Class`
 
 U `Class` možeš dodavati utility klase.
 
@@ -708,7 +701,7 @@ To znači:
 - `pa-4` = unutarnji razmak
 - `mt-4` = vanjski razmak odozgo
 
-### 19.3 Atribut `Elevation`
+### 11.3 Atribut `Elevation`
 
 Određuje jačinu sjene.
 
@@ -718,7 +711,7 @@ Određuje jačinu sjene.
 - `Elevation="2"` = blaga sjena
 - `Elevation="6"` = jača sjena
 
-### 19.4 Atribut `Outlined`
+### 11.4 Atribut `Outlined`
 
 Umjesto sjene možemo koristiti obrub.
 
@@ -730,7 +723,7 @@ Umjesto sjene možemo koristiti obrub.
 
 To daje čišći i ravniji izgled.
 
-### 19.5 Atribut `Square`
+### 11.5 Atribut `Square`
 
 Ako želimo manje zaobljene rubove:
 
@@ -740,7 +733,7 @@ Ako želimo manje zaobljene rubove:
 </MudPaper>
 ```
 
-### 19.6 Primjeri `MudPaper`
+### 11.6 Primjeri `MudPaper`
 
 <CodePreviewSplit
   title='MudPaper — usporedba više stilova'
@@ -769,7 +762,7 @@ Ako želimo manje zaobljene rubove:
 
 ---
 
-## 20. Komponenta `MudStack`
+## 19. Komponenta `MudStack`
 
 `MudStack` služi za slaganje elemenata:
 
@@ -778,7 +771,7 @@ Ako želimo manje zaobljene rubove:
 
 To je jedna od najvažnijih komponenti za raspored.
 
-### 20.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudStack — osnovni primjer'
@@ -794,14 +787,14 @@ To je jedna od najvažnijih komponenti za raspored.
 </MudStack>`}
 />
 
-### 20.2 Atribut `Spacing`
+### 11.2 Atribut `Spacing`
 
 Određuje razmak između djece unutar stacka.
 
 - `Spacing="1"` = manji razmak
 - `Spacing="4"` ili `Spacing="5"` = veći razmak
 
-### 20.3 Atribut `Row`
+### 11.3 Atribut `Row`
 
 Ako želimo horizontalni raspored:
 
@@ -814,7 +807,7 @@ Ako želimo horizontalni raspored:
 
 Bez `Row="true"` gumbi bi stajali jedan ispod drugoga.
 
-### 20.4 Atribut `Justify`
+### 11.4 Atribut `Justify`
 
 Određuje raspored po glavnoj osi.
 
@@ -827,7 +820,7 @@ Vrijednosti:
 - `Justify.SpaceAround`
 - `Justify.SpaceEvenly`
 
-### 20.5 Atribut `AlignItems`
+### 11.5 Atribut `AlignItems`
 
 Određuje poravnanje po drugoj osi.
 
@@ -838,7 +831,7 @@ Vrijednosti:
 - `AlignItems.End`
 - `AlignItems.Stretch`
 
-### 20.6 Primjeri `MudStack`
+### 11.6 Primjeri `MudStack`
 
 <CodePreviewSplit
   title='MudStack — vertikalni i horizontalni raspored'
@@ -867,14 +860,14 @@ Vrijednosti:
 
 ---
 
-## 21. Komponente `MudGrid` i `MudItem`
+## 20. Komponente `MudGrid` i `MudItem`
 
 Koriste se za raspored elemenata u stupce.
 
 - `MudGrid` = cijela mreža
 - `MudItem` = pojedini element unutar mreže
 
-### 21.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudGrid i MudItem — osnovni primjer'
@@ -894,19 +887,19 @@ Koriste se za raspored elemenata u stupce.
 </MudGrid>`}
 />
 
-### 21.2 Što znači `xs="12"` i `md="4"`
+### 11.2 Što znači `xs="12"` i `md="4"`
 
 MudGrid radi sa sustavom od **12 stupaca**.
 
 - `xs="12"` znači da na vrlo malim ekranima element zauzima svih 12 stupaca, dakle cijelu širinu
 - `md="4"` znači da na srednjem i većem ekranu element zauzima 4 od 12 stupaca, dakle trećinu širine
 
-<Callout tone="info" title='Kako objasniti učeniku `xs="12"` i `md="4"`'>
+<Callout tone="info" title='Kako jednostavno razumjeti `xs="12"` i `md="4"`'>
   Ne razmišljaj o tome kao o “magičnim brojevima”.  
   Razmišljaj ovako: ekran je podijeljen na 12 dijelova. Na mobitelu kartica uzima svih 12 dijelova. Na većem ekranu uzima 4 dijela, što je trećina širine.
 </Callout>
 
-### 21.3 Breakpoint vrijednosti
+### 11.3 Breakpoint vrijednosti
 
 - `xs` = extra small
 - `sm` = small
@@ -926,7 +919,7 @@ To znači:
 - na manjem ekranu pola širine
 - na srednjem i većem ekranu trećina širine
 
-### 21.4 Primjeri
+### 11.4 Primjeri
 
 <CodePreviewSplit
   title='MudGrid — više rasporeda'
@@ -966,7 +959,7 @@ To znači:
 
 ---
 
-## 22. Komponenta `MudButton`
+## 21. Komponenta `MudButton`
 
 `MudButton` prikazuje gumb.
 
@@ -978,7 +971,7 @@ Koristimo ga za:
 - prelazak na drugu akciju
 - vizualni naglasak na stranici
 
-### 22.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudButton — osnovni primjer'
@@ -988,7 +981,7 @@ Koristimo ga za:
   code={`<MudButton>Dodaj</MudButton>`}
 />
 
-### 22.2 Atribut `Variant`
+### 11.2 Atribut `Variant`
 
 Određuje izgled gumba.
 
@@ -996,7 +989,7 @@ Određuje izgled gumba.
 - `Variant.Outlined` = gumb s obrubom
 - `Variant.Text` = tekstualni gumb
 
-### 22.3 Atribut `Color`
+### 11.3 Atribut `Color`
 
 Određuje boju gumba.
 
@@ -1031,7 +1024,7 @@ Primjer iz `MainLayout.razor`:
 <MudSnackbarProvider />
 ```
 
-### 22.4 Atribut `Size`
+### 11.4 Atribut `Size`
 
 Određuje veličinu gumba.
 
@@ -1039,7 +1032,7 @@ Određuje veličinu gumba.
 - `Size.Medium`
 - `Size.Large`
 
-### 22.5 Atributi `StartIcon` i `EndIcon`
+### 11.5 Atributi `StartIcon` i `EndIcon`
 
 Dodaju ikonu na početak ili kraj teksta.
 
@@ -1057,11 +1050,11 @@ Dodaju ikonu na početak ili kraj teksta.
 </MudButton>
 ```
 
-### 22.6 Primjeri
+### 11.6 Primjeri
 
 <CodePreviewSplit
   title='MudButton — varijante, boje, veličine i ikone'
-  description='Ovdje učenik treba vidjeti da se izgled gumba ne mijenja samo tekstom, nego i kombinacijom atributa.'
+  description='Ovdje trebaš jasno vidjeti da se izgled gumba ne mijenja samo tekstom, nego i kombinacijom atributa.'
   language="razor"
   fileName="mudbutton-primjeri.webp"
   code={`<MudStack Row="true" Spacing="2">
@@ -1088,11 +1081,11 @@ Dodaju ikonu na početak ili kraj teksta.
 
 ---
 
-## 23. Komponenta `MudTable`
+## 22. Komponenta `MudTable`
 
 `MudTable` služi za prikaz podataka u tablici. U ovoj lekciji koristimo **statičke podatke**, bez baze.
 
-### 23.1 Osnovni primjer
+### 11.1 Osnovni primjer
 
 <CodePreviewSplit
   title='MudTable — osnovni primjer'
@@ -1113,7 +1106,7 @@ Dodaju ikonu na početak ili kraj teksta.
 </MudTable>`}
 />
 
-### 23.2 Atribut `Items`
+### 11.2 Atribut `Items`
 
 ```razor
 Items="_species"
@@ -1121,7 +1114,7 @@ Items="_species"
 
 To znači da tablica koristi listu `_species`. Ako lista sadrži 3 objekta, tablica će prikazati 3 reda.
 
-### 23.3 `HeaderContent`
+### 11.3 `HeaderContent`
 
 Ovdje definiramo zaglavlje tablice.
 
@@ -1133,7 +1126,7 @@ Ovdje definiramo zaglavlje tablice.
 </HeaderContent>
 ```
 
-### 23.4 `RowTemplate`
+### 11.4 `RowTemplate`
 
 Ovdje definiramo kako izgleda jedan red.
 
@@ -1151,14 +1144,14 @@ onda:
 - `@context.Name` daje `Dog`
 - `@context.Description` daje `Domaći pas`
 
-### 23.5 Važni atributi tablice
+### 11.5 Važni atributi tablice
 
 - `Dense="true"` = gušći prikaz, manje razmaka
 - `Hover="true"` = red reagira kad prijeđemo mišem preko njega
 - `Striped="true"` = naizmjenične boje redova
 - `Bordered="true"` = obrubi tablice i ćelija
 
-### 23.6 Primjeri
+### 11.6 Primjeri
 
 <CodePreviewSplit
   title='MudTable — više varijanti'
@@ -1201,7 +1194,7 @@ onda:
 
 ---
 
-## 24. Komponenta `MudImage`
+## 23. Komponenta `MudImage`
 
 `MudImage` služi za prikaz slike.
 
@@ -1213,7 +1206,7 @@ Koristimo je kada želimo prikazati:
 - banner
 - sliku unutar kartice
 
-### 24.1 Gdje spremiti slike
+### 11.1 Gdje spremiti slike
 
 Najčešće ih spremamo u:
 
@@ -1235,7 +1228,7 @@ Ako je slika tamo, u komponenti pišemo samo:
 
 Ne pišemo `wwwroot/images/dog.jpg`.
 
-### 24.2 Osnovni primjer
+### 11.2 Osnovni primjer
 
 <CodePreviewSplit
   title='MudImage — osnovni primjer'
@@ -1245,12 +1238,12 @@ Ne pišemo `wwwroot/images/dog.jpg`.
   code={`<MudImage Src="images/dog.jpg" Alt="Pas u azilu" />`}
 />
 
-### 24.3 Primjer sa širinom i visinom
+### 11.3 Primjer sa širinom i visinom
 
 - `Width` = širina slike
 - `Height` = visina slike
 
-### 24.4 Atribut `Fluid`
+### 11.4 Atribut `Fluid`
 
 Ako želimo da se slika prilagođava širini roditeljskog elementa:
 
@@ -1262,7 +1255,7 @@ Ako želimo da se slika prilagođava širini roditeljskog elementa:
 
 To je korisno za responzivan prikaz.
 
-### 24.5 Primjer slike u kartici
+### 11.5 Primjer slike u kartici
 
 <CodePreviewSplit
   title='MudImage — slika u kartici'
@@ -1290,209 +1283,182 @@ To je korisno za responzivan prikaz.
 
 ---
 
-# D. Cjeloviti primjeri stranica
-
-## 25. Cjelovit primjer početne stranice
-
-```razor
-@page "/"
-
-<MudStack Spacing="4">
-    <MudText Typo="Typo.h3" GutterBottom="true">
-        Dobro došli u AzilEdu
-    </MudText>
-
-    <MudText Typo="Typo.body1">
-        Ova aplikacija služi za evidenciju životinja, smještaja i udomitelja.
-    </MudText>
-
-    <MudGrid>
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h5" Color="Color.Primary">
-                    Animals
-                </MudText>
-                <MudText Typo="Typo.body2">
-                    Pregled životinja u azilu.
-                </MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h5" Color="Color.Primary">
-                    Species
-                </MudText>
-                <MudText Typo="Typo.body2">
-                    Vrste životinja u sustavu.
-                </MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h5" Color="Color.Primary">
-                    Adopters
-                </MudText>
-                <MudText Typo="Typo.body2">
-                    Osobe koje udomljavaju životinje.
-                </MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-
-    <MudStack Row="true" Spacing="2">
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add">
-            Nova životinja
-        </MudButton>
-
-        <MudButton Variant="Variant.Outlined"
-                   Color="Color.Secondary"
-                   StartIcon="@Icons.Material.Filled.List">
-            Pregled vrsta
-        </MudButton>
-    </MudStack>
-</MudStack>
-```
-
-### Što učenik treba razumjeti iz ovog primjera
-
-- `MudStack` organizira cijelu stranicu
-- `MudText` daje naslov i opis
-- `MudGrid` i `MudItem` slažu kartice
-- `MudPaper` vizualno odvaja kartice
-- `MudButton` ističe glavne akcije
-
----
-
-## 26. Cjelovit primjer `Species` stranice
-
-```razor
-@page "/species"
-
-<MudStack Spacing="3">
-    <MudStack Row="true"
-              Justify="Justify.SpaceBetween"
-              AlignItems="AlignItems.Center">
-        <MudText Typo="Typo.h4">Species</MudText>
-
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add">
-            Add Species
-        </MudButton>
-    </MudStack>
-
-    <MudText Typo="Typo.body1">
-        Ovdje se prikazuju vrste životinja koje koristimo u sustavu.
-    </MudText>
-
-    <MudTable Items="_species"
-              Dense="true"
-              Hover="true"
-              Striped="true"
-              Bordered="true">
-        <HeaderContent>
-            <MudTh>Id</MudTh>
-            <MudTh>Name</MudTh>
-            <MudTh>Description</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Id">@context.Id</MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Description">@context.Description</MudTd>
-        </RowTemplate>
-    </MudTable>
-</MudStack>
-
-@code {
-    private List<SpeciesItem> _species = new()
-    {
-        new SpeciesItem { Id = 1, Name = "Dog", Description = "Domaći pas" },
-        new SpeciesItem { Id = 2, Name = "Cat", Description = "Domaća mačka" },
-        new SpeciesItem { Id = 3, Name = "Bird", Description = "Ptica" }
-    };
-
-    public class SpeciesItem
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string Description { get; set; } = "";
-    }
-}
-```
-
-### Zašto je ovaj primjer važan
-
-Ovdje prvi put vidiš stranicu koja više ne izgleda kao “placeholder”, nego kao prava radna stranica:
-
-- ima naslov
-- ima akcijski gumb
-- ima objašnjenje
-- ima tablični prikaz podataka
-- koristi više MudBlazor komponenti zajedno
-
----
-
 # E. Vježba, domaći i najčešće pogreške
 
-## 27. Vježba na satu
+## 26. Rad na satu: izrada početne stranice
 
-### Zadatak 1
+Na satu zajedno izrađuješ početnu stranicu modula `Animals`. Cilj nije samo dobiti lijep ekran, nego vidjeti kako se od prazne Razor stranice dolazi do pregledne početne stranice s naslovom, opisom, karticama, slikama i akcijskim gumbima.
 
-Napraviti početnu stranicu s:
+Tijekom rada na satu fokus treba biti na ovome:
 
-- naslovom
-- opisom
-- tri kartice
-- dva gumba
+- gdje se u datoteci nalazi naslov i uvodni tekst
+- kako se postavlja raspored pomoću `MudGrid` i `MudItem`
+- kako se kartice vizualno ujednačavaju pomoću `MudPaper`
+- kako se slike umeću pomoću `MudImage`
+- kako gumbi daju stranici dojam pravog modula, a ne samo statičnog teksta
 
-### Zadatak 2
+### Korak 1 – Izrada početne stranice `Animals`
 
-Promijeniti:
+Početna stranica treba sadržavati:
+
+- naslov stranice
+- kratak uvodni opis
+- tri kartice modula
+- sliku unutar svake kartice
+- dva akcijska gumba
+
+To znači da završni izgled ne smije biti samo naslov i tekst. Stranica treba djelovati kao početni ekran jednog stvarnog modula unutar aplikacije.
+
+### Korak 2 – Male izmjene koje mijenjaju dojam stranice
+
+Na gotovom primjeru pokaži što se događa kada promijeniš:
 
 - `Typo.h3` u `Typo.h4`
 - `Spacing="4"` u `Spacing="2"`
 - `Elevation="2"` u `Outlined="true"`
 
-### Zadatak 3
+Ovaj dio je važan jer pokazuje da i male promjene atributa mogu potpuno promijeniti dojam korisničkog sučelja.
 
-Dodati još jednu karticu:
+### Korak 3 – Dodavanje nove kartice `Housing Units`
 
-- `Housing Units`
+Dodaj još jednu karticu pod nazivom `Housing Units`. Ta kartica treba ostati u istom vizualnom sustavu kao i postojeće kartice na stranici `Animals`.
 
-<Callout tone="info" title="Što učenik zapravo vježba kroz ova tri zadatka">
-  Ne vježba samo prepisivanje.  
-  Vježba kako mali atributi i male promjene utječu na čitav izgled stranice.
+Kartica treba sadržavati:
+
+- sliku ili placeholder sliku
+- naslov `Housing Units`
+- kratak opis modula, na primjer: `Pregled bokseva, kaveza i drugih smještajnih jedinica.`
+- isti `MudPaper` stil kao ostale kartice
+- isti način poravnanja sadržaja kao na ostalim karticama
+- isti položaj unutar `MudGrid` rasporeda
+
+Kod ove demonstracije važno je naglasiti kako kartica treba izgledati:
+
+- na vrhu kartice treba biti slika
+- ispod slike treba biti naslov kartice
+- ispod naslova kratak opis
+- na dnu može stajati gumb ili akcija ako tako izgledaju i ostale kartice
+- razmaci, padding i veličina kartice trebaju ostati usklađeni s ostatkom stranice
+
+Ako se nakon dodavanja četvrte kartice raspored promijeni, treba ga urediti tako da stranica i dalje izgleda pregledno na većim i manjim ekranima. Bitno je zadržati uredan grid, a ne samo "ugurati" novu karticu bez brige o konačnom izgledu.
+
+<Callout tone="info" title="Što se zapravo uvježbava kroz demonstraciju na satu">
+  Ovdje se prati kako nastaje početna stranica jednog modula: od naslova i uvoda, preko rasporeda i kartica, do slika i akcijskih gumba.  
+  Najvažnije je prepoznati obrazac koji će se kasnije samostalno primijeniti na drugoj stranici.
 </Callout>
 
-## 28. Domaći zadatak
+## 27. Domaći zadatak
 
-Napraviti `Species.razor` koristeći:
+Na temelju demonstracije s modula `Animals` samostalno izradi proširenu stranicu `Species.razor`. Cilj domaćeg nije kopirati isti sadržaj, nego prenijeti isti vizualni i tehnički obrazac na novu stranicu.
 
-- `MudStack`
-- `MudText`
-- `MudButton`
-- `MudTable`
+Dopušteno je pogledati kako je složena početna stranica `Animals`, ali `Species` treba sastaviti samostalno.
 
-Stranica mora sadržavati:
+### Što treba izraditi
 
-- naslov
-- opis
-- gumb
-- tablicu s najmanje 3 vrste
+Potrebno je napraviti stranicu `Species.razor` koja sadrži:
+
+- naslov stranice `Species`
+- kratak uvodni tekst ispod naslova
+- grid s najmanje 4 kartice
+- sliku na svakoj kartici
+- gumb ili link unutar svake kartice
+- ispravnu rutu `/species`
+- link prema stranici u navigaciji
+
+Stranica treba djelovati kao stvarni dio aplikacije, a ne kao placeholder stranica s jednim naslovom i nekoliko redaka teksta.
+
+### Obavezni sadržaj svake kartice
+
+Svaka `Species` kartica mora sadržavati:
+
+- sliku ili placeholder sliku
+- naziv vrste
+- latinski naziv
+- kratak opis
+- prosječan životni vijek
+- tip prehrane
+- broj jedinki u azilu
+- gumb ili link, npr. `View Details`
+
+Nemoj ostaviti kartice na razini "ime + jedna rečenica" jer to ne prati obrazac prikazan na satu.
+
+### Preporučeni raspored stranice
+
+Stranicu složi ovim redoslijedom:
+
+1. naslov `Species`
+2. uvodni tekst koji objašnjava što stranica prikazuje
+3. grid kartica
+4. pregledno poravnanje i razmaci između elemenata
+
+Kartice trebaju biti složene tako da na većem ekranu izgledaju kao dio urednog dashboard rasporeda, a na manjem ekranu ostanu čitljive i pregledne.
+
+### Slike na karticama
+
+Za slike koristi placeholder slike ili unaprijed zadane lokalne slike. Nije cilj domaćeg trošiti vrijeme na traženje slika po internetu, nego uvježbati kako se slike umeću i uklapaju u kartice.
+
+Pripazi da:
+
+- sve kartice imaju sliku
+- slike budu ujednačene veličine ili barem vizualno usklađene
+- slika ne razbije raspored kartice
+- sadržaj ispod slike ostane čitljiv i uredan
+
+### Vizualni zahtjevi
+
+Pazi da stranica bude:
+
+- uredno razmaknuta
+- čitljiva
+- vizualno usklađena s početnom stranicom `Animals`
+- složena kao dio iste aplikacije
+- dosljedna u bojama, razmacima i stilu kartica
+
+Koristi komponente poput `MudGrid`, `MudItem`, `MudPaper`, `MudText`, `MudImage` i `MudButton` tako da kartice djeluju kao jedinstvena cjelina.
+
+### Ruta i navigacija
+
+Domaći nije gotov dok ne napraviš i ovo:
+
+- postavi `@page "/species"` na vrh stranice
+- dodaj link prema `Species` stranici u navigaciju
+- provjeri otvara li se stranica ispravno klikom iz izbornika
+
+Ako stranica postoji, ali nije povezana u navigaciji, zadatak nije dovršen do kraja.
+
+### Što treba predati
+
+Na kraju domaćeg treba postojati:
+
+- gotova datoteka `Species.razor`
+- ruta `/species` koja radi bez greške
+- link u navigaciji koji vodi na tu stranicu
+- najmanje 4 kartice
+- slika na svakoj kartici
+- svi obavezni podaci na svakoj kartici
+- stranica koja vizualno izgleda kao nastavak demonstracije s `Animals`
+
+### Kako gotov rad treba izgledati
+
+Kad otvoriš `Species`, treba se odmah vidjeti da stranica pripada istoj aplikaciji kao i `Animals`.
+
+To znači:
+
+- naslov i uvodni tekst moraju biti jasni i odvojeni od ostatka sadržaja
+- kartice trebaju biti pregledno poravnane
+- svaka kartica mora imati jasnu hijerarhiju sadržaja: slika, naslov, dodatni podaci, gumb
+- završni rezultat treba izgledati kao mali katalog vrsta unutar sustava za azil
 
 ### Cilj domaćeg
 
-Nije cilj samo prepisati kod. Cilj je razumjeti:
+Cilj je pokazati da možeš:
 
-- kako se komponente kombiniraju
-- što znače atributi
-- kako raspored utječe na izgled stranice
+- prenijeti obrazac prikazan na satu na novu stranicu
+- samostalno složiti kartice sa slikama i više podataka
+- koristiti rutu i navigaciju
+- održati vizualnu dosljednost kroz cijelu aplikaciju
 
-## 29. Najčešće pogreške
+## 28. Najčešće pogreške
 
 ### Pogreška 1
 Misliti da MudBlazor radi logiku aplikacije.  
@@ -1518,13 +1484,13 @@ Bolje je raditi ovim redom:
 5. tablica
 
 <Callout tone="danger" title="Prava opasnost za početnike">
-  Najgore nije kad nešto ne radi. Najgore je kad nešto radi, a učenik ne zna <strong>zašto</strong>.  
+  Najgore nije kad nešto ne radi. Najgore je kad nešto radi, a ti ne znaš <strong>zašto</strong>.  
   Tada nema prijenosa znanja, nego samo kratkotrajno kopiranje.
 </Callout>
 
 ---
 
-## 30. Što trebaš znati nakon ovog sata
+## 29. Što trebaš znati nakon ovog sata
 
 Trebao bi moći:
 
@@ -1534,7 +1500,7 @@ Trebao bi moći:
 - složiti statičku stranicu bez baze
 - koristiti dokumentaciju za daljnji rad
 
-## 31. Kratki sažetak
+## 30. Kratki sažetak
 
 U ovoj lekciji napravio si dvije važne stvari:
 
@@ -1545,5 +1511,5 @@ To znači da si prešao iz faze “projekt postoji” u fazu “projekt izgleda 
 
 <Callout tone="success" title="Zaključak">
   Ovo predavanje je temelj za sve što slijedi.  
-  Ako učenik ovdje stvarno razumije layout, navigaciju i osnovne komponente, kasniji moduli poput Animals, Species, Adopters i Notes bit će mu mnogo jasniji.
+  Ako ovdje stvarno razumiješ layout, navigaciju i osnovne komponente, kasniji moduli poput Animals, Species, Adopters i Notes bit će ti mnogo jasniji.
 </Callout>
