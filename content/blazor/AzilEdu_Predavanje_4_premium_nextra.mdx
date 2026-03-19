@@ -1,109 +1,94 @@
-import { LessonHero, InfoBox, ScreenshotFigure, StepGrid, StepCard, ConceptGrid, ConceptCard, Checklist, LessonSummary } from '../../components/LessonUI'
+import CodePreviewSplit from '../../components/CodePreviewSplit'
+import { LessonHero, InfoBox, StepGrid, StepCard, ConceptGrid, ConceptCard, Checklist, LessonSummary } from '../../components/LessonUI'
 
 <LessonHero
   eyebrow="AzilEdu • Predavanje 4"
   title="Baza podataka, EF Core, DbContext i prve migracije"
-  subtitle="U ovoj lekciji učenici prvi put uvode pravu pohranu podataka u isti AzilEdu projekt. Nakon privremenih testnih podataka iz prethodne lekcije, sada pripremamo bazu, definiramo DbContext i učimo što migracije stvarno rade."
-  badges={['Blazor Web App', 'API projekt', 'Entity Framework Core', 'SQLite', 'Migracije']}
+  subtitle="U ovoj lekciji nadograđujemo isti AzilEdu projekt tako da podaci više nisu samo ručno upisana lokalna lista, nego prelaze u pravu SQLite bazu. Fokus nije na slijepom tipkanju naredbi, nego na razumijevanju kako model, DbContext, migracija i stvarna baza rade zajedno kroz rad u Visual Studio okruženju i Package Manager Console."
+  badges={['Blazor Web App', 'Entity Framework Core', 'SQLite', 'DbContext', 'Migracije']}
 />
 
-<InfoBox type="info" title="Gdje se nalazimo u projektu?">
-U **1. lekciji** upoznali smo strukturu solutiona. U **2. lekciji** uredili smo korisničko sučelje i MudBlazor osnovu. U **3. lekciji** prikazivali smo životinje pomoću privremenih podataka.  
-
-**Sada radimo veliki prijelaz:** podaci više ne smiju biti samo zapisani ručno u listi, nego moraju imati **pravu bazu** u kojoj će se moći spremati, čitati i kasnije uređivati.
+<InfoBox type="info" title="Gdje se ova lekcija nadovezuje?">
+U prethodnoj lekciji složili smo stranicu <strong>Animals</strong> i prikazivali podatke pomoću lokalne liste. To je bio dobar korak za razumijevanje modela, Razor stranice i MudTable prikaza. Sada isti projekt ide dalje: podatke više ne držimo samo u kodu, nego ih pripremamo za stvarnu pohranu u bazu.
 </InfoBox>
 
-## Ishodi današnjeg sata
+## 1. Zašto bazu uvodimo tek sada
 
-Nakon ove lekcije učenik bi trebao moći:
+Da smo odmah na početku krenuli s bazom, migracijama i `DbContext` klasom, lako bismo završili tako da samo pratimo upute bez stvarnog razumijevanja projekta.
 
-- objasniti razliku između **modela u aplikaciji** i **tablice u bazi**
-- objasniti što je **Entity Framework Core**
-- objasniti ulogu klase **DbContext**
-- postaviti **SQLite bazu** u projektu
-- dodati potrebne NuGet pakete u API projekt
-- registrirati DbContext u `Program.cs`
-- napisati osnovni kontekst baze i `DbSet<Animal>`
-- pokrenuti **prvu migraciju**
-- napraviti bazu pomoću naredbe `Update-Database`
-- razumjeti što se dogodilo nakon migracije i gdje se sada nalazi baza
+Prvo je trebalo složiti:
 
-## Zašto tek sada uvodimo bazu?
+- strukturu solutiona
+- osnovni layout i navigaciju
+- model `Animal`
+- stranicu `Animals`
+- prikaz podataka bez baze
 
-<InfoBox type="success" title="Ispravan redoslijed učenja">
-Bazu **ne uvodimo prerano**. Da smo odmah na početku krenuli s migracijama i terminal naredbama, učenici bi lako naučili samo tipkati naredbe bez razumijevanja.  
+Tek sada ima smisla prijeći na bazu, jer točno vidimo što pokušavaš spremiti i zašto ti baza uopće treba.
 
-Prvo su morali razumjeti:
-
-- kako izgleda solution
-- čemu služe projekti `App`, `Api` i `Shared`
-- kako izgleda jedna stranica u aplikaciji
-- kako se podaci prikazuju korisniku
-
-Tek sada baza ima smisla.
+<InfoBox type="success" title="Ispravan redoslijed rada">
+Prvo smo razumjeli kako izgleda modul i kako se podaci prikazuju. Tek nakon toga uvodimo trajnu pohranu. Tako baza nije apstraktna teorija nego logičan nastavak onoga što smo već napravili.
 </InfoBox>
 
-## Što ćemo točno napraviti danas?
+## 2. Što danas radiš
 
 <StepGrid>
-  <StepCard title="1. Dodajemo EF Core pakete" icon="package">
-    U projekt `AzilEdu.Api` dodajemo NuGet pakete potrebne za rad s bazom i migracijama.
+  <StepCard title="1. Provjeravaš model Animal" icon="pets">
+    Krećemo od istog modela koji smo koristili u prethodnoj lekciji i usklađujemo ga s bazom.
   </StepCard>
-  <StepCard title="2. Definiramo model i DbContext" icon="database">
-    Kažemo aplikaciji koje entitete želimo spremati i kako izgleda veza prema bazi.
+  <StepCard title="2. Dodaješ EF Core pakete" icon="package">
+    U projekt `AzilEdu.Api` dodajemo NuGet pakete potrebne za SQLite i migracije.
   </StepCard>
-  <StepCard title="3. Spajamo bazu s aplikacijom" icon="link">
-    U `Program.cs` registriramo bazu i connection string.
+  <StepCard title="3. Radiš DbContext" icon="database">
+    Uvodi se klasa koja predstavlja vezu između aplikacije i baze.
   </StepCard>
-  <StepCard title="4. Radimo migraciju" icon="wand">
-    EF Core generira zapis promjene strukture baze na temelju našeg modela.
+  <StepCard title="4. Registriraš bazu" icon="link">
+    U `Program.cs` povezujemo `DbContext` i connection string.
   </StepCard>
-  <StepCard title="5. Stvaramo bazu" icon="check-circle">
-    Migraciju primjenjujemo i dobivamo stvarnu lokalnu bazu koju ćemo kasnije koristiti za CRUD rad.
+  <StepCard title="5. Pokrećeš migracije" icon="wand">
+    Generiramo prvu migraciju i stvaramo stvarnu SQLite bazu.
   </StepCard>
 </StepGrid>
 
-## Podsjetnik na arhitekturu projekta
+## 3. Podsjetnik na raspodjelu projekata
 
 <ConceptGrid>
-  <ConceptCard title="App">
-    Frontend dio aplikacije. Ovdje se nalaze stranice, MudBlazor komponente, navigacija i prikaz podataka.
+  <ConceptCard title="AzilEdu.App">
+    Ovdje se nalazi korisničko sučelje: Razor stranice, MudBlazor komponente, navigacija i prikaz podataka.
   </ConceptCard>
-  <ConceptCard title="Api">
-    Backend dio aplikacije. Ovdje će se nalaziti baza, `DbContext`, API endpointi i logika za rad s podacima.
+  <ConceptCard title="AzilEdu.Api">
+    Ovdje smještaš bazu, `DbContext`, API logiku, kontrolere i migracije.
   </ConceptCard>
-  <ConceptCard title="Shared">
-    Zajednički dio solutiona. Ovdje držimo klase i ugovore koje trebaju koristiti i `App` i `Api`.
+  <ConceptCard title="AzilEdu.Shared">
+    Ovdje držiš zajedničke modele koje koriste i frontend i backend.
   </ConceptCard>
 </ConceptGrid>
 
 <InfoBox type="warning" title="Važna odluka za ovu lekciju">
-U ovoj lekciji bazu postavljamo u **`AzilEdu.Api` projektu**. To je ispravno jer je API zadužen za pristup podacima i rad s bazom.  
-
-Frontend projekt `App` ne bi trebao sam direktno upravljati bazom.
+SQLite bazu i `DbContext` postavljaš u projektu <strong>`AzilEdu.Api`</strong>. To je ispravno jer backend upravlja podacima i pristupom bazi. Frontend projekt ne bi trebao direktno upravljati bazom.
 </InfoBox>
 
-## Zašto koristimo SQLite?
+## 4. Provjera modela `Animal`
 
-Za ovu fazu projekta koristimo **SQLite** zato što je:
+Prije baze moramo imati model koji želimo spremati. Ovdje se ne vraćamo na siromašniju staru verziju modela, nego koristimo usklađenu verziju iz prethodne lekcije.
 
-- jednostavan za početno učenje
-- lagan za postavljanje
-- ne traži instalaciju posebnog serverskog servisa
-- odličan za školski projekt i lokalni razvoj
-- dovoljno dobar da učenici razumiju kako EF Core i migracije rade
+Najčešća lokacija modela je:
 
-Kasnije se isti princip može prenijeti i na SQL Server ili neku drugu ozbiljniju bazu.
+```text
+Shared/Models/Animal.cs
+```
 
-## 1. Provjera modela `Animal`
+<CodePreviewSplit
+  title='Lokacija datoteke `Animal.cs`'
+  description='Na lijevoj strani vidimo putanju datoteke koju uređuješ, a na desnoj preview slike iz Visual Studija.'
+  language="text"
+  fileName="animal-model-location.webp"
+  code={`Shared/Models/Animal.cs`}
+/>
 
-Prije baze moramo imati model koji želimo spremati.
+Opis slike: prikaz foldera `Shared/Models` i otvorene datoteke `Animal.cs` u Visual Studio okruženju.
 
-Ako iz prethodne lekcije već imate klasu `Animal`, sada je ponovno pregledajte i po potrebi doradite. Ako je još nemate na pravom mjestu, sada je pravo vrijeme da je uredno smjestite.
-
-Preporuka je da je držite u projektu **`AzilEdu.Shared`**, jer će taj model trebati i frontend i backend.
-
-### Primjer klase `Animal`
+### Cjeloviti sadržaj datoteke `Animal.cs`
 
 ```csharp
 namespace AzilEdu.Shared.Models;
@@ -114,37 +99,52 @@ public class Animal
     public string Name { get; set; } = string.Empty;
     public string Species { get; set; } = string.Empty;
     public string Breed { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
     public int Age { get; set; }
     public DateTime ArrivalDate { get; set; }
     public bool IsAdopted { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 }
 ```
 
-<InfoBox type="info" title="Zašto je `Id` važan?">
-Svojstvo `Id` je identifikator zapisa. EF Core će ga prepoznati kao **primarni ključ** tablice.  
+### Zašto je ovaj model važan za bazu
 
-To znači da će svaki zapis u bazi imati jedinstvenu vrijednost po kojoj ga možemo pronaći, uređivati ili obrisati.
+Svako javno svojstvo iz ove klase EF Core može pretvoriti u stupac tablice. To znači:
+
+- `Id` postaje primarni ključ
+- `Name`, `Species`, `Breed` i ostala tekstualna svojstva postaju stupci za tekst
+- `Age` postaje numerički stupac
+- `ArrivalDate` postaje datum
+- `IsAdopted` postaje logička vrijednost
+
+<InfoBox type="info" title="Najvažnija mentalna poveznica">
+Klasa `Animal` još nije baza. To je model u aplikaciji. Tek kada taj model povežeš s `DbContext` klasom i pokreneš migraciju, EF Core može iz njega izvesti strukturu tablice u bazi.
 </InfoBox>
 
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/shared-animal-model.webp"
-  alt="Prikaz klase Animal u Shared projektu"
-  caption="Predložena slika: `shared-animal-model.webp` — prikaz klase `Animal` u projektu `AzilEdu.Shared`. Upload u `public/images/aziledu/predavanje-4/`."
-/>
+## 5. Dodavanje EF Core paketa u `AzilEdu.Api`
 
-## 2. Dodavanje NuGet paketa u `AzilEdu.Api`
+Entity Framework Core ne dolazi spreman samo zato što koristimo .NET projekt. Moraš dodati pakete koji omogućuju rad s bazom i migracijama.
 
-Sada u projekt `AzilEdu.Api` moramo dodati pakete koji omogućuju rad s Entity Framework Coreom i SQLite bazom.
-
-### Paketi koji su nam potrebni
+Potrebni su ti:
 
 - `Microsoft.EntityFrameworkCore`
 - `Microsoft.EntityFrameworkCore.Sqlite`
 - `Microsoft.EntityFrameworkCore.Tools`
 
-### Dodavanje paketa kroz Package Manager Console
+### Kako otvoriti Package Manager Console u Visual Studiju
 
-Provjeri da je **default project** postavljen na `AzilEdu.Api`, pa pokreni:
+U Visual Studiju otvori:
+
+```text
+Tools > NuGet Package Manager > Package Manager Console
+```
+
+Kada se konzola otvori, na vrhu provjeri da je **Default project** postavljen na `AzilEdu.Api`.
+
+### Naredbe koje pokrećemo u Package Manager Console
+
+U Package Manager Console upiši:
 
 ```powershell
 Install-Package Microsoft.EntityFrameworkCore
@@ -152,34 +152,30 @@ Install-Package Microsoft.EntityFrameworkCore.Sqlite
 Install-Package Microsoft.EntityFrameworkCore.Tools
 ```
 
-### Alternativa: dodavanje preko .NET CLI-a
-
-Ako radije koristiš terminal:
-
-```bash
-cd AzilEdu.Api
-dotnet add package Microsoft.EntityFrameworkCore
-dotnet add package Microsoft.EntityFrameworkCore.Sqlite
-dotnet add package Microsoft.EntityFrameworkCore.Tools
-```
-
-<InfoBox type="warning" title="Najčešća greška učenika">
-Učenici često dodaju pakete u **krivi projekt**.  
-
-U ovoj lekciji pakete dodajemo u **`AzilEdu.Api`**, jer se baza i `DbContext` nalaze u API projektu.
-</InfoBox>
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/api-nuget-packages.webp"
-  alt="Prikaz instaliranih EF Core paketa u AzilEdu.Api projektu"
-  caption="Predložena slika: `api-nuget-packages.webp` — otvoren NuGet/Dependencies prikaz u `AzilEdu.Api` projektu s instaliranim EF Core paketima. Upload u `public/images/aziledu/predavanje-4/`."
+<CodePreviewSplit
+  title='Provjera paketa u `AzilEdu.Api`'
+  description='Na lijevoj strani vidimo gdje u Solution Exploreru ili Dependencies prikazu trebamo provjeriti instalirane pakete, a na desnoj preview slike.'
+  language="text"
+  fileName="api-nuget-packages.webp"
+  code={`AzilEdu.Api
+└── Dependencies
+    └── Packages
+        ├── Microsoft.EntityFrameworkCore
+        ├── Microsoft.EntityFrameworkCore.Sqlite
+        └── Microsoft.EntityFrameworkCore.Tools`}
 />
 
-## 3. Kreiranje mape za bazu i DbContext
+Opis slike: otvoren `AzilEdu.Api` projekt i prikaz `Dependencies/Packages` s instaliranim EF Core paketima.
 
-Da bi projekt bio uredan, nećemo sve datoteke bacati u isti folder.
+<InfoBox type="warning" title="Tipična pogreška">
+Nemoj pakete dodavati u `AzilEdu.App`. Za ovu lekciju paketi moraju biti u <strong>`AzilEdu.Api`</strong>, jer se ondje nalaze baza, migracije i `DbContext`.
+</InfoBox>
 
-U `AzilEdu.Api` projektu preporučujem sljedeću strukturu:
+## 6. Kreiranje mape `Data` i klase `AzilEduDbContext`
+
+Sada uvodiš novu klasu koja je središte rada s bazom.
+
+Preporučena struktura u API projektu je:
 
 ```text
 AzilEdu.Api/
@@ -190,30 +186,65 @@ AzilEdu.Api/
 └── ...
 ```
 
-### Zašto baš folder `Data`?
+<CodePreviewSplit
+  title='Lokacija datoteke `AzilEduDbContext.cs`'
+  description='Na lijevoj strani vidimo putanju i naziv datoteke koju sada izrađujemo, a na desnoj preview slike iz Visual Studija.'
+  language="text"
+  fileName="dbcontext-file-location.webp"
+  code={`AzilEdu.Api/Data/AzilEduDbContext.cs`}
+/>
 
-Zato što time odvajamo:
+Opis slike: prikaz projekta `AzilEdu.Api`, mape `Data` i otvorene datoteke `AzilEduDbContext.cs`.
 
-- podatkovni sloj (`Data`)
-- API endpointe
-- konfiguraciju
-- ostale pomoćne dijelove projekta
+### 6.1 `using` direktive i namespace
 
-To je mala stvar, ali dugoročno čini projekt preglednijim.
+```csharp
+using AzilEdu.Shared.Models;
+using Microsoft.EntityFrameworkCore;
 
-## 4. Izrada klase `AzilEduDbContext`
+namespace AzilEdu.Api.Data;
+```
 
-Sada radimo najvažniju novu klasu ove lekcije: **DbContext**.
+Ovaj dio omogućuje:
 
-DbContext je klasa koja predstavlja most između naše aplikacije i baze podataka.
+- korištenje modela `Animal` iz Shared projekta
+- korištenje EF Core klase `DbContext`
+- pravilno smještanje nove klase u namespace API projekta
 
-Ona govori EF Coreu:
+### 6.2 Nasljeđivanje `DbContext` klase
 
-- koje entitete pratimo
-- koje tablice želimo imati
-- kako se povezujemo s bazom
+```csharp
+public class AzilEduDbContext : DbContext
+```
 
-### Datoteka: `Data/AzilEduDbContext.cs`
+Ovdje govoriš da je `AzilEduDbContext` posebna klasa za rad s bazom i da nasljeđuje sve osnovne mogućnosti koje daje EF Core.
+
+### 6.3 Konstruktor
+
+```csharp
+public AzilEduDbContext(DbContextOptions<AzilEduDbContext> options)
+    : base(options)
+{
+}
+```
+
+Ovaj konstruktor prima konfiguraciju baze izvana, najčešće iz `Program.cs` datoteke. To je standardan način rada u modernim .NET aplikacijama.
+
+### 6.4 `DbSet<Animal>`
+
+```csharp
+public DbSet<Animal> Animals => Set<Animal>();
+```
+
+Ova linija govori EF Coreu da u bazi želimo imati skup zapisa tipa `Animal`.
+
+Drugim riječima:
+
+- model `Animal` opisuje jedan zapis
+- `DbSet<Animal>` predstavlja kolekciju tih zapisa
+- u bazi to najčešće postaje tablica `Animals`
+
+### Cjeloviti sadržaj datoteke `AzilEduDbContext.cs`
 
 ```csharp
 using AzilEdu.Shared.Models;
@@ -232,55 +263,21 @@ public class AzilEduDbContext : DbContext
 }
 ```
 
-## Objašnjenje ove klase red po red
+## 7. Dodavanje connection stringa u `appsettings.json`
 
-### `public class AzilEduDbContext : DbContext`
+Aplikacija mora znati gdje se baza nalazi. To rješavaš connection stringom.
 
-Ovdje govorimo da naša klasa nasljeđuje `DbContext`.  
-Time dobivamo sve osnovne mogućnosti rada s EF Coreom.
+### Dio koji dodajemo
 
-### Konstruktor s `DbContextOptions`
-
-```csharp
-public AzilEduDbContext(DbContextOptions<AzilEduDbContext> options)
-    : base(options)
-{
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Data Source=AzilEdu.db"
 }
 ```
 
-Ovo omogućuje da konfiguraciju baze pošaljemo izvana, najčešće iz `Program.cs` datoteke.
+Ovaj zapis znači da će SQLite koristiti lokalnu datoteku baze naziva `AzilEdu.db`.
 
-To je standardan i ispravan način rada u modernim .NET aplikacijama.
-
-### `DbSet<Animal>`
-
-```csharp
-public DbSet<Animal> Animals => Set<Animal>();
-```
-
-Ova linija kaže:
-
-> U bazi želimo imati kolekciju zapisa tipa `Animal`.
-
-Drugim riječima, EF Core iz toga zaključuje da treba postojati tablica za životinje.
-
-<InfoBox type="success" title="Važna mentalna poveznica">
-- **Klasa `Animal`** predstavlja jedan objekt u aplikaciji.
-- **`DbSet<Animal>`** predstavlja skup takvih objekata.
-- U bazi to najčešće odgovara **tablici `Animals`**.
-</InfoBox>
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/api-dbcontext-class.webp"
-  alt="Prikaz klase AzilEduDbContext u Api projektu"
-  caption="Predložena slika: `api-dbcontext-class.webp` — otvorena datoteka `AzilEduDbContext.cs` u `Data` folderu. Upload u `public/images/aziledu/predavanje-4/`."
-/>
-
-## 5. Dodavanje connection stringa u `appsettings.json`
-
-Aplikacija mora znati **gdje se baza nalazi**. Zato u `appsettings.json` dodajemo connection string.
-
-### Primjer konfiguracije
+### Cjeloviti primjer `appsettings.json`
 
 ```json
 {
@@ -297,376 +294,229 @@ Aplikacija mora znati **gdje se baza nalazi**. Zato u `appsettings.json` dodajem
 }
 ```
 
-### Što znači `Data Source=AzilEdu.db`?
+<CodePreviewSplit
+  title='Connection string u `appsettings.json`'
+  description='Na lijevoj strani vidimo dio konfiguracije koji trebamo dodati, a na desnoj preview kako to izgleda u editoru.'
+  language="json"
+  fileName="appsettings-connectionstring.webp"
+  code={`"ConnectionStrings": {
+  "DefaultConnection": "Data Source=AzilEdu.db"
+}`}
+/>
 
-To znači da će SQLite koristiti datoteku baze naziva **`AzilEdu.db`**.
-
-Ako baza još ne postoji, EF Core je može stvoriti kada primijenimo migracije.
+Opis slike: otvorena datoteka `appsettings.json` i označen dio `ConnectionStrings` s vrijednošću `DefaultConnection`.
 
 <InfoBox type="info" title="Gdje će se baza pojaviti?">
-U najjednostavnijem obliku baza će se pojaviti kao datoteka u projektu ili u izlaznom runtime folderu, ovisno o tome kako pokrećeš aplikaciju i odakle izvršavaš naredbe.  
-
-Za učenike je najvažnije da razumiju: SQLite baza je u ovom slučaju **jedna fizička `.db` datoteka**.
+Za ovu lekciju najvažnije je razumjeti da je SQLite baza u ovom slučaju <strong>jedna `.db` datoteka</strong>. Ona se može pojaviti u projektu ovisno o načinu pokretanja aplikacije i konfiguraciji projekta.
 </InfoBox>
 
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/appsettings-connectionstring.webp"
-  alt="Prikaz connection stringa u appsettings.json datoteci"
-  caption="Predložena slika: `appsettings-connectionstring.webp` — `appsettings.json` s prikazanim `ConnectionStrings` dijelom. Upload u `public/images/aziledu/predavanje-4/`."
-/>
+## 9. Što je migracija
 
-## 6. Registracija baze i DbContexta u `Program.cs`
+Migracija je zapis promjene strukture baze na temelju promjena koje si napravio u modelima i `DbContext` klasi.
 
-Sada `AzilEdu.Api` moramo reći da koristi naš `DbContext` i SQLite bazu.
-
-### Dodaj potrebne `using` direktive
-
-```csharp
-using AzilEdu.Api.Data;
-using Microsoft.EntityFrameworkCore;
-```
-
-### Zatim registriraj DbContext
-
-```csharp
-builder.Services.AddDbContext<AzilEduDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-```
-
-### Primjer dijela `Program.cs`
-
-```csharp
-using AzilEdu.Api.Data;
-using Microsoft.EntityFrameworkCore;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddControllers();
-
-builder.Services.AddDbContext<AzilEduDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
-app.Run();
-```
-
-## Što znači `AddDbContext`?
-
-Ta metoda registrira naš kontekst baze u **dependency injection** sustav aplikacije.
-
-To znači da će kasnije:
-
-- kontroleri
-- servisi
-- repozitoriji
-
-moći dobiti `AzilEduDbContext` kao ovisnost bez ručnog stvaranja instance.
-
-<InfoBox type="warning" title="Ne preskači objašnjenje DI sustava">
-Početnici često samo kopiraju `AddDbContext(...)` bez razumijevanja.  
-
-Objasni im jednostavno:
-
-> Aplikacija sada zna kako napraviti objekt koji predstavlja vezu prema bazi i može ga dati dijelovima aplikacije kojima treba.
-</InfoBox>
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/program-adddbcontext.webp"
-  alt="Prikaz registracije DbContexta u Program.cs datoteci"
-  caption="Predložena slika: `program-adddbcontext.webp` — dio `Program.cs` u kojem je dodan `AddDbContext` za SQLite. Upload u `public/images/aziledu/predavanje-4/`."
-/>
-
-## 7. Što su migracije?
-
-Ovo je najvažniji teorijski dio lekcije.
-
-Migracija je **zapis promjene strukture baze** na temelju promjena koje smo napravili u modelima i DbContextu.
-
-Drugim riječima:
+Najkraće rečeno:
 
 - imamo klasu `Animal`
-- imamo `DbSet<Animal>`
-- EF Core vidi da na temelju toga treba napraviti tablicu
-- migracija opisuje **kako** se baza treba promijeniti da bi odgovarala tom modelu
+- imamo `DbSet<Animal>` u `AzilEduDbContext` klasi
+- EF Core iz toga zaključuje da treba napraviti tablicu
+- migracija opisuje kako baza treba izgledati nakon te promjene
 
-### Jednostavna definicija za učenike
-
-<InfoBox type="info" title="Definicija koju učenici mogu zapamtiti">
-**Migracija je datoteka koja opisuje promjenu baze podataka.**  
-
-Kad promijenimo model, EF Core može generirati migraciju koja kaže kako baza treba izgledati nakon te promjene.
+<InfoBox type="info" title="Definicija koju vrijedi zapamtiti">
+Migracija je datoteka koja opisuje promjenu baze podataka. `Add-Migration` stvara opis promjene, a `Update-Database` tu promjenu primjenjuje na stvarnu bazu.
 </InfoBox>
 
-## Zašto su migracije korisne?
+## 10. Prva migracija za `Animals`
 
-Zato što omogućuju da baza raste zajedno s aplikacijom.
+Prije prve migracije moramo imati tri stvari:
 
-Primjer:
+- model `Animal`
+- `AzilEduDbContext` s `DbSet<Animal>`
+- ispravno postavljen **Default project** na `AzilEdu.Api` u Package Manager Console
 
-- danas `Animal` ima 7 svojstava
-- sutra dodamo `Weight`
-- prekosutra dodamo `Description`
+### 10.1 Gdje pišemo naredbe
 
-Svaka takva promjena može postati migracija. Na taj način baza se razvija kontrolirano, a ne ručno i kaotično.
+Sve naredbe u ovoj lekciji pišemo u **Package Manager Console** unutar Visual Studija.
 
-## 8. Prva migracija
+Otvori je ovako:
 
-Kad su model, DbContext i connection string spremni, možemo generirati prvu migraciju.
+```text
+Tools > NuGet Package Manager > Package Manager Console
+```
 
-### Varijanta 1 — Package Manager Console
+### 10.2 Prije naredbe provjeri projekt
 
-Provjeri:
+Najvažnije je da je u Package Manager Console kao **Default project** odabran **`AzilEdu.Api`**.
 
-- **Startup project** treba biti onaj koji pokreće API
-- **Default project** neka bude `AzilEdu.Api`
+<CodePreviewSplit
+  title='Provjera da radiš u `AzilEdu.Api` projektu'
+  description='Na lijevoj strani vidimo što treba biti odabrano prije migracije, a na desnoj preview slike iz Visual Studija.'
+  language="text"
+  fileName="pm-default-project-api.webp"
+  code={`Package Manager Console
+Default project: AzilEdu.Api`}
+/>
 
-Zatim pokreni:
+Opis slike: otvoren Package Manager Console u Visual Studiju i označeno da je Default project postavljen na `AzilEdu.Api`.
+
+### 10.3 Naredba za prvu migraciju
+
+Kada je `AzilEdu.Api` odabran kao Default project, pokreni:
 
 ```powershell
 Add-Migration InitialCreate
 ```
 
-### Varijanta 2 — .NET CLI
+Ako je sve postavljeno ispravno, EF Core će stvoriti mapu `Migrations` i u nju dodati datoteke koje opisuju početnu strukturu baze.
 
-Ako koristiš CLI, iz solution ili API konteksta naredba može izgledati ovako:
-
-```bash
-dotnet ef migrations add InitialCreate --project AzilEdu.Api
-```
-
-### Što će se dogoditi?
-
-EF Core će napraviti mapu **`Migrations`** i u njoj generirati datoteke koje opisuju početnu strukturu baze.
-
-Tipično ćeš dobiti:
-
-- datoteku migracije
-- designer datoteku
-- snapshot modela
-
-<InfoBox type="warning" title="Ako naredba ne radi">
-Najčešći razlozi su:
-
-- `Microsoft.EntityFrameworkCore.Tools` nije instaliran
-- pokrećeš naredbu u krivom projektu
-- solution se ne builda uspješno
-- postoji tipfeler u namespaceu ili klasi `DbContext`
-</InfoBox>
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/migrations-folder-created.webp"
-  alt="Prikaz Migrations foldera nakon Add-Migration naredbe"
-  caption="Predložena slika: `migrations-folder-created.webp` — Solution Explorer s novim `Migrations` folderom nakon uspješne prve migracije. Upload u `public/images/aziledu/predavanje-4/`."
+<CodePreviewSplit
+  title='Nakon `Add-Migration InitialCreate`'
+  description='Na lijevoj strani vidimo što očekuješ u strukturi projekta nakon migracije, a na desnoj preview slike iz Solution Explorera.'
+  language="text"
+  fileName="migrations-folder-created.webp"
+  code={`AzilEdu.Api/
+├── Data/
+├── Migrations/
+│   ├── 2025xxxxxxxx_InitialCreate.cs
+│   ├── 2025xxxxxxxx_InitialCreate.Designer.cs
+│   └── AzilEduDbContextModelSnapshot.cs
+└── ...`}
 />
 
-## 9. Primjena migracije na bazu
+Opis slike: Solution Explorer s novom mapom `Migrations` nakon uspješno izvršene naredbe `Add-Migration InitialCreate`.
 
-Sada imamo opis promjene baze, ali baza još možda nije stvarno stvorena. Zato koristimo naredbu:
+## 11. Primjena migracije na stvarnu bazu
+
+Sada imamo opis promjene, ali baza još ne mora postojati. Zato u istoj **Package Manager Console** pokrećemo naredbu:
 
 ```powershell
 Update-Database
 ```
 
-ili CLI varijantu:
+Ovdje se događa stvarna promjena:
 
-```bash
-dotnet ef database update --project AzilEdu.Api
+- stvara se SQLite baza
+- u bazi nastaje tablica `Animals`
+- struktura baze sada odgovara modelu i `DbContext` klasi
+
+<InfoBox type="success" title="Razlika koju moramo jasno razlikovati">
+- `Add-Migration` stvara opis promjene
+- `Update-Database` tu promjenu primjenjuje na stvarnu bazu
+</InfoBox>
+
+<CodePreviewSplit
+  title='Provjera SQLite baze nakon `Update-Database`'
+  description='Na lijevoj strani vidimo naziv datoteke koju tražiš, a na desnoj preview kako to može izgledati u projektu ili File Exploreru.'
+  language="text"
+  fileName="sqlite-db-file.webp"
+  code={`AzilEdu.db`}
+/>
+
+Opis slike: prikaz datoteke `AzilEdu.db` u projektu, output folderu ili File Exploreru nakon uspješne primjene migracije.
+
+## 12. Domaći rad: samostalno dodaj tablicu `HousingUnits`
+
+Za domaći ne ponavljamo opet `Animals`, nego isti obrazac samostalno prenosimo na novu tablicu. Odabir je ovdje namjerno strogo zadan kako bi zadatak bio jasan.
+
+### 12.1 Napravi model `HousingUnit`
+
+U projektu `AzilEdu.Shared`, u mapi `Models`, dodaj novu datoteku:
+
+```text
+Shared/Models/HousingUnit.cs
 ```
 
-### Što radi `Update-Database`?
+Model treba sadržavati točno ova svojstva:
 
-Ona uzima migracije koje postoje u projektu i **primjenjuje ih na stvarnu bazu**.
+```csharp
+namespace AzilEdu.Shared.Models;
 
-U našem slučaju to znači da će:
+public class HousingUnit
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string UnitType { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public int CurrentOccupancy { get; set; }
+    public bool IsIndoor { get; set; }
+}
+```
 
-- nastati SQLite baza
-- u njoj biti napravljena tablica za životinje
-- baza sada odgovarati našem modelu
+### 12.2 Nadogradi `AzilEduDbContext`
 
-<InfoBox type="success" title="Najvažnija razlika koju učenici moraju razumjeti">
-- `Add-Migration` **stvara opis promjene**
-- `Update-Database` **primjenjuje tu promjenu na stvarnu bazu**
+U `AzilEduDbContext.cs` dodaj još jedan `DbSet`:
+
+```csharp
+public DbSet<HousingUnit> HousingUnits => Set<HousingUnit>();
+```
+
+### 12.3 Napravi novu migraciju
+
+Nemoj ponovno koristiti `InitialCreate`. Sada radiš novu migraciju. U Package Manager Console, uz odabran `AzilEdu.Api`, pokreni:
+
+```powershell
+Add-Migration AddHousingUnits
+```
+
+### 12.4 Primijeni promjenu na bazu
+
+U istoj Package Manager Console pokreni:
+
+```powershell
+Update-Database
+```
+
+### 12.5 Što na kraju mora postojati
+
+Na kraju domaćeg treba postojati:
+
+- novu datoteku `HousingUnit.cs`
+- nadograđen `AzilEduDbContext`
+- novu migraciju `AddHousingUnits`
+- ažuriranu SQLite bazu
+- objašnjenje vlastitim riječima što se promijenilo u bazi nakon dodavanja nove tablice
+
+### 12.6 Kako gotov rad treba izgledati
+
+Predaja treba sadržavati:
+
+- screenshot modela `HousingUnit`
+- screenshot `AzilEduDbContext` klase s oba `DbSet` svojstva
+- screenshot `Migrations` mape nakon nove migracije
+- kratki tekst od 5 do 8 rečenica u kojem objašnjavaš razliku između modela, migracije i stvarne baze
+
+<InfoBox type="warning" title="Što ovdje nije prihvatljivo">
+Nije dovoljno samo kopirati naredbe. Mora biti jasno da razumiješ što je dodano, zašto je potrebna nova migracija i što se promijenilo u strukturi baze.
 </InfoBox>
 
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/update-database-success.webp"
-  alt="Prikaz uspješno izvršene Update-Database naredbe"
-  caption="Predložena slika: `update-database-success.webp` — Package Manager Console ili terminal nakon uspješnog `Update-Database`. Upload u `public/images/aziledu/predavanje-4/`."
-/>
+## 13. Najvažnije za zapamtiti
 
-## 10. Što sada imamo nakon migracije?
-
-Ako je sve prošlo dobro, sada imamo:
-
-- model `Animal`
-- `AzilEduDbContext`
-- konfiguriranu SQLite bazu
-- migraciju `InitialCreate`
-- stvarnu bazu s odgovarajućom tablicom
-
-To znači da je aplikacija spremna za sljedeći korak: **upis i čitanje stvarnih podataka iz baze**.
-
-## Kako provjeriti je li baza stvarno napravljena?
-
-Možeš provjeriti nekoliko stvari:
-
-### 1. Postoji li `.db` datoteka?
-
-Potraži datoteku `AzilEdu.db`.
-
-### 2. Je li nastala mapa `Migrations`?
-
-Ako postoji, migracija je generirana.
-
-### 3. Je li `Update-Database` završio bez greške?
-
-Ako je naredba prošla uspješno, baza je vrlo vjerojatno napravljena.
-
-### 4. Možeš li otvoriti bazu nekim SQLite preglednikom?
-
-To nije obavezno za ovu lekciju, ali je korisno ako želiš vizualno pokazati učenicima da tablica stvarno postoji.
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-4/sqlite-db-file.webp"
-  alt="Prikaz SQLite baze kao datoteke u projektu ili output folderu"
-  caption="Predložena slika: `sqlite-db-file.webp` — prikaz datoteke `AzilEdu.db` u File Exploreru ili Solution Exploreru. Upload u `public/images/aziledu/predavanje-4/`."
-/>
-
-## 11. Najčešće greške i kako ih objasniti učenicima
-
-### Greška 1: Paket nije u pravom projektu
-
-Ako su EF Core paketi dodani u `App` umjesto u `Api`, migracije neće raditi kako treba.
-
-### Greška 2: Projekt ne builda
-
-EF Core ne može generirati migraciju ako solution već ima compile error.
-
-### Greška 3: Krivi default project u konzoli
-
-Ako u Package Manager Console naredbu pokreneš nad pogrešnim projektom, EF Core možda neće naći `DbContext`.
-
-### Greška 4: Nema connection stringa
-
-Ako `DefaultConnection` nije definiran, `UseSqlite(...)` neće imati valjanu putanju prema bazi.
-
-### Greška 5: Učenici ne razumiju razliku između modela i baze
-
-To treba posebno naglasiti.
-
-<InfoBox type="warning" title="Vrlo važna pedagoška napomena">
-Učenici često misle da se baza „sama stvorila iz ničega“.  
-
-Objasni im sljedeći lanac:
-
-1. napisali smo klasu `Animal`
-2. rekli smo DbContextu da postoji `DbSet<Animal>`
-3. EF Core je na temelju toga izradio migraciju
-4. migraciju smo primijenili na bazu
-5. rezultat je stvarna tablica u bazi
-
-Kad shvate taj niz, migracije im prestaju biti magija.
-</InfoBox>
-
-## 12. Što još ne radimo u ovoj lekciji?
-
-Važno je i jasno reći što **još nije tema današnje lekcije**.
-
-Danas **ne radimo**:
-
-- unos nove životinje kroz formu
-- dohvat podataka iz baze u prikaznoj stranici
-- uređivanje i brisanje zapisa
-- napredne relacije između više tablica
-- DTO mapiranja i složenije API servise
-
-Zašto? Zato što želimo prvo stabilno postaviti bazu i razumjeti migracije.
-
-## 13. Što radimo u sljedećoj lekciji?
-
-U sljedećoj lekciji napravit ćemo ono za što smo danas pripremili temelje:
-
-- dohvat podataka iz baze
-- prikaz stvarnih zapisa umjesto privremenih podataka
-- ili unos nove životinje kroz formu, ovisno o odabranom redoslijedu rada
-
-Najvažnije je da učenici sada razumiju:
-
-> današnja lekcija nije „samo o naredbama“, nego o tome da projekt prvi put dobiva **pravu pohranu podataka**.
-
-## Praktični zadatak na satu
-
-### Zadatak 1
-
-Dodaj EF Core SQLite pakete u `AzilEdu.Api` projekt.
-
-### Zadatak 2
-
-Provjeri i po potrebi doradi klasu `Animal` u `AzilEdu.Shared` projektu.
-
-### Zadatak 3
-
-U `AzilEdu.Api` napravi mapu `Data` i dodaj klasu `AzilEduDbContext`.
-
-### Zadatak 4
-
-U `appsettings.json` dodaj `DefaultConnection` koji pokazuje na `AzilEdu.db`.
-
-### Zadatak 5
-
-U `Program.cs` registriraj SQLite bazu pomoću `AddDbContext`.
-
-### Zadatak 6
-
-Pokreni prvu migraciju pod nazivom `InitialCreate`.
-
-### Zadatak 7
-
-Pokreni `Update-Database` i provjeri je li baza stvarno napravljena.
-
-## Domaći rad
-
-1. U klasu `Animal` dodaj još jedno svojstvo po vlastitom izboru, npr. `Weight` ili `Description`.
-2. Razmisli što bi se moralo dogoditi s bazom nakon takve promjene.
-3. Pokušaj usmeno objasniti razliku između:
-   - modela
-   - migracije
-   - stvarne baze
-4. U bilježnicu ili dokument napiši vlastitim riječima čemu služi `DbContext`.
+- model u aplikaciji i tablica u bazi nisu ista stvar, ali su povezani
+- `DbContext` je most između aplikacije i baze
+- `DbSet<Animal>` i `DbSet<HousingUnit>` govore EF Coreu koje tablice želimo imati
+- `Add-Migration` ne stvara odmah bazu, nego zapisuje promjenu strukture
+- `Update-Database` tu promjenu primjenjuje na stvarnu bazu
+- SQLite baza je u ovom slučaju jedna `.db` datoteka
+- svaka nova tablica ili veća promjena modela traži novu migraciju
 
 <Checklist
   items={[
-    'Znam objasniti što je Entity Framework Core.',
-    'Znam objasniti čemu služi DbContext.',
-    'Znam dodati EF Core SQLite pakete u API projekt.',
-    'Znam gdje upisati connection string.',
-    'Znam registrirati bazu u Program.cs datoteci.',
+    'Znam objasniti razliku između modela, DbContext klase, migracije i stvarne baze.',
+    'Znam gdje se dodaju EF Core SQLite paketi.',
+    'Znam napraviti AzilEduDbContext u projektu AzilEdu.Api.',
+    'Znam dodati connection string u appsettings.json.',
+    'Znam registrirati DbContext u Program.cs datoteci.',
     'Znam razliku između Add-Migration i Update-Database naredbi.',
-    'Znam objasniti kako klasa Animal postaje tablica u bazi.'
+    'Znam samostalno dodati novu tablicu HousingUnits kroz novi model i novu migraciju.'
   ]}
 />
 
 <LessonSummary
   title="Sažetak lekcije"
   points={[
-    'U ovoj lekciji AzilEdu projekt je prvi put dobio pravu bazu podataka.',
-    'Uveli smo Entity Framework Core i SQLite kao jednostavan i prikladan izbor za početni rad.',
-    'Napravili smo klasu AzilEduDbContext i povezali je s modelom Animal.',
-    'Dodali smo connection string i registrirali bazu u Program.cs datoteci.',
-    'Naučili smo razliku između Add-Migration i Update-Database naredbi.',
-    'Projekt je sada spreman za rad sa stvarnim podacima u sljedećim lekcijama.'
+    'U ovoj lekciji AzilEdu projekt prvi put dobiva stvarnu bazu podataka.',
+    'Koristiš postojeći model Animal i povezuješ ga s EF Coreom preko klase AzilEduDbContext.',
+    'Dodaješ SQLite connection string i registriraš bazu u Program.cs datoteci.',
+    'Pokrećeš prvu migraciju i zatim je primjenjuješ na stvarnu bazu.',
+    'Na satu prolazimo cijeli tok za Animals, a u domaćem isti princip prenosimo na novu tablicu HousingUnits.'
   ]}
 />
