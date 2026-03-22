@@ -1,782 +1,1125 @@
----
-title: "AzilEdu — Predavanje 6"
-description: "Refaktor CRUD-a, servis za rad sa životinjama, potvrda brisanja i bolja validacija forme."
----
+import CodePreviewSplit from '../../components/CodePreviewSplit'
+import { LessonHero, InfoBox, StepGrid, StepCard, ConceptGrid, ConceptCard, LessonSummary } from '../../components/LessonUI'
 
 <LessonHero
   eyebrow="AzilEdu • Predavanje 6"
-  title="Refaktor CRUD-a, potvrda brisanja i bolja validacija"
-  subtitle="U ovoj lekciji uređujemo postojeći CRUD nad tablicom Animals tako da projekt postane čišći, sigurniji i lakši za nadogradnju."
-  badges={['Blazor Web App', 'EF Core', 'MudBlazor', 'Refaktor']}
+  title="CUD preko API-ja: unos, uređivanje i brisanje podataka"
+  subtitle="U ovoj lekciji nadograđujemo HTTP + DTO pristup iz prethodnog predavanja. Animals modul više ne služi samo za dohvat i prikaz podataka, nego dobiva i tri ključne operacije: Create, Update i Delete. Sve ide preko API kontrolera, DTO objekata i HttpClient poziva iz App projekta."
+  badges={['Blazor Web App', 'HTTP', 'DTO', 'Create', 'Update', 'Delete']}
 />
 
-<InfoBox type="info" title="Što radimo u ovoj lekciji?">
-U prethodnoj lekciji omogućili smo rad nad stvarnim podacima iz baze i pokazali **create, edit i delete** nad tablicom <code>Animals</code>.
-
-Sada ne dodajemo novu veliku funkcionalnost, nego postojeći kod činimo boljim:
-
-- izdvajamo rad s bazom u **servis**
-- uvodimo **potvrdu brisanja**
-- pojačavamo **validaciju forme**
-- pojednostavljujemo stranice tako da budu lakše za čitanje i održavanje
+<InfoBox type="info" title="Važna didaktička napomena">
+Ova lekcija se direktno nastavlja na prethodnu. Tamo smo složili ispravan dohvat podataka preko <strong>HTTP + DTO</strong> obrasca. Sada zadržavamo isti arhitekturni pristup i širimo ga na unos, uređivanje i brisanje. Domaći rad se nastavlja na prethodni domaći modul <code>HousingUnits</code>.
 </InfoBox>
 
-<InfoBox type="success" title="Zašto je ovo važno?">
-Ako sav kod ostane unutar <code>.razor</code> stranica, projekt brzo postaje nepregledan. U ozbiljnijim aplikacijama logika pristupa podacima ne ostaje razbacana po UI-u, nego se organizira u zasebne klase i servise.
-</InfoBox>
+## 1. Gdje smo stali
 
-## Ishodi učenja
+Na kraju prethodne lekcije <code>Animals</code> stranica je već radila ispravno:
 
-Na kraju ove lekcije učenik bi trebao moći:
+- App je slao GET zahtjev preko <code>HttpClient</code>
+- API kontroler je čitao bazu preko <code>DbContext</code>
+- kontroler je podatke mapirao u DTO
+- App je prikazivao listu u MudTable komponenti
 
-- objasniti zašto CRUD logiku nije dobro držati samo u stranici
-- izraditi servis <code>AnimalService</code>
-- kroz servis dohvaćati, dodavati, uređivati i brisati zapise
-- dodati potvrdu prije brisanja zapisa
-- poboljšati validaciju forme za unos i uređivanje životinje
-- prepoznati razliku između UI logike i logike rada s bazom
+Sada idemo korak dalje. Nije dovoljno samo vidjeti postojeće podatke. Stvarna aplikacija mora moći:
 
-## Podsjetnik: gdje smo stali?
-
-U projektu već imamo:
-
-- model <code>Animal</code>
-- bazu i migracije
-- tablicu <code>Animals</code>
-- prikaz zapisa iz baze
-- formu za dodavanje i uređivanje
-- gumb za brisanje zapisa
-
-Problem je što se u ovakvoj fazi često dogodi sljedeće:
-
-- dohvat podataka stoji u stranici
-- spremanje podataka stoji u stranici
-- brisanje stoji u stranici
-- validacija je djelomična
-- brisanje se izvršava odmah, bez potvrde
-
-Takav kod radi, ali nije uredan.
+- unijeti novu životinju
+- urediti postojeći zapis
+- obrisati zapis koji više nije potreban
 
 ---
 
-## 1. Zašto uvodimo servis?
+## 2. Što danas radimo
 
-<ConceptGrid>
-  <ConceptCard title="UI sloj">
-    <p>Stranica treba biti prvenstveno zadužena za prikaz podataka, korisničku interakciju i navigaciju.</p>
-  </ConceptCard>
-  <ConceptCard title="Servisni sloj">
-    <p>Servis obavlja rad s bazom: dohvaća, dodaje, ažurira i briše podatke.</p>
-  </ConceptCard>
-  <ConceptCard title="Prednost">
-    <p>Kod je pregledniji, lakše se testira i jednostavnije se kasnije prebacuje na API ili DTO pristup.</p>
-  </ConceptCard>
-</ConceptGrid>
+<StepGrid>
+  <StepCard title="1. Dodajemo DTO za unos i uređivanje" icon="edit_note">
+    Uvodi se DTO klasa koja predstavlja podatke koje šaljemo iz App projekta prema API-ju.
+  </StepCard>
+  <StepCard title="2. Proširujemo API kontroler" icon="api">
+    U kontroler dodajemo POST, PUT i DELETE metode.
+  </StepCard>
+  <StepCard title="3. Dodajemo formu za unos" icon="add_box">
+    U App projektu radimo stranicu ili obrazac za unos nove životinje.
+  </StepCard>
+  <StepCard title="4. Dodajemo uređivanje i brisanje" icon="delete_sweep">
+    Na postojećoj tablici dodajemo akcijske gumbe za uređivanje i brisanje.
+  </StepCard>
+</StepGrid>
 
-<InfoBox type="warning" title="Bitna napomena">
-Servis ne uvodimo zato što je to "modernije", nego zato što projekt nakon nekoliko stranica bez toga postaje neuredan i težak za održavanje.
+<InfoBox type="warning" title="Podsjetnik na pravilo iz prethodne lekcije">
+Ni u ovoj lekciji <code>AzilEdu.App</code> ne koristi <code>DbContext</code>. App samo šalje HTTP zahtjeve. Sve što se tiče baze ostaje u projektu <code>AzilEdu.Api</code>.
 </InfoBox>
 
-## 2. Gdje ćemo smjestiti servis?
+---
 
-Za ovu fazu projekta sasvim je dovoljno napraviti servis unutar **Api** projekta, u folderu npr.:
+## 3. DTO za unos i uređivanje
 
-```text
-AzilEdu.Api/Services/AnimalService.cs
-```
+Za slanje podataka prema API-ju praktično je koristiti poseban DTO. Time jasno odvajamo podatke koje šaljemo od entity modela baze.
 
-Ako želiš, kasnije možeš dodati i sučelje:
+Najčešća lokacija je:
 
 ```text
-AzilEdu.Api/Services/IAnimalService.cs
+Shared/DTOs/SaveAnimalDto.cs
 ```
 
-U ovoj lekciji možeš i bez sučelja ako želiš pojednostaviti gradivo. Važnije je da učenici razumiju ideju izdvajanja logike nego da odmah uvode dodatnu apstrakciju.
+<CodePreviewSplit
+  title='Lokacija datoteke `SaveAnimalDto.cs`'
+  description='Lijevo je putanja DTO datoteke za unos i uređivanje, a desno preview foldera `DTOs` u projektu `Shared`.'
+  language="text"
+  fileName="save-animal-dto-location.webp"
+  code={`Shared/DTOs/SaveAnimalDto.cs`}
+/>
 
-## 3. Izrada servisa AnimalService
+Opis slike: prikaz foldera `Shared/DTOs` i otvorene datoteke `SaveAnimalDto.cs`.
 
-Napravimo novu klasu <code>AnimalService</code>.
+### Cjeloviti sadržaj datoteke `SaveAnimalDto.cs`
+
+```csharp
+namespace AzilEdu.Shared.DTOs;
+
+public class SaveAnimalDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Species { get; set; } = string.Empty;
+    public string Breed { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public int? Age { get; set; }
+    public DateTime? ArrivalDate { get; set; }
+    public bool IsAdopted { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+```
+
+<InfoBox type="success" title="Zašto poseban DTO za spremanje ima smisla?">
+Tako jasno odvajamo podatke koje šaljemo u formi od podataka koje vraćamo natrag prema tablici. Kasnije možeš lako dodati validaciju, sakriti neka polja ili promijeniti što se šalje bez diranja entity modela baze.
+</InfoBox>
+
+---
+
+## 4. Proširenje `AnimalsController` s POST, PUT i DELETE metodama
+
+Kontroler iz prethodne lekcije već ima GET metodu. Sada ga proširujemo tako da može primati nove podatke i mijenjati postojeće.
+
+### Korak 1 – POST metoda za unos nove životinje
+
+```csharp
+[HttpPost]
+public async Task<ActionResult<AnimalDto>> CreateAnimal(SaveAnimalDto dto)
+{
+    var animal = new Animal
+    {
+        Name = dto.Name,
+        Species = dto.Species,
+        Breed = dto.Breed,
+        Gender = dto.Gender,
+        Age = dto.Age,
+        ArrivalDate = dto.ArrivalDate,
+        IsAdopted = dto.IsAdopted,
+        ImageUrl = dto.ImageUrl,
+        Description = dto.Description
+    };
+
+    _context.Animals.Add(animal);
+    await _context.SaveChangesAsync();
+
+    var result = new AnimalDto
+    {
+        Id = animal.Id,
+        Name = animal.Name,
+        Species = animal.Species,
+        Breed = animal.Breed,
+        Gender = animal.Gender,
+        Age = animal.Age,
+        ArrivalDate = animal.ArrivalDate,
+        IsAdopted = animal.IsAdopted,
+        ImageUrl = animal.ImageUrl,
+        Description = animal.Description
+    };
+
+    return CreatedAtAction(nameof(GetAnimalById), new { id = animal.Id }, result);
+}
+```
+
+#### Što znači `[HttpPost]`?
+
+Ovaj atribut govori da se metoda pokreće kada API primi **POST zahtjev** na rutu kontrolera, u ovom slučaju:
+
+```text
+api/animals
+```
+
+POST koristimo kada želimo **poslati nove podatke** prema serveru i iz njih stvoriti novi zapis u bazi.
+
+#### Što znači potpis metode?
+
+```csharp
+public async Task<ActionResult<AnimalDto>> CreateAnimal(SaveAnimalDto dto)
+```
+
+- `CreateAnimal` je naziv metode
+- `SaveAnimalDto dto` predstavlja podatke koje App šalje iz forme prema API-ju
+- `ActionResult<AnimalDto>` znači da metoda može vratiti DTO objekt, ali i neki HTTP status ako bude potrebno
+- `async` i `Task` znače da metoda radi asinkrono, što je važno jer pristup bazi i spremanje ne želimo izvršavati blokirajuće
+
+Drugim riječima: ova metoda prima podatke iz forme, obrađuje ih i na kraju vraća odgovor koji App može razumjeti.
+
+#### Zašto prvo radimo `new Animal`?
+
+```csharp
+var animal = new Animal
+{
+    Name = dto.Name,
+    Species = dto.Species,
+    Breed = dto.Breed,
+    Gender = dto.Gender,
+    Age = dto.Age,
+    ArrivalDate = dto.ArrivalDate,
+    IsAdopted = dto.IsAdopted,
+    ImageUrl = dto.ImageUrl,
+    Description = dto.Description
+};
+```
+
+Ovdje iz DTO objekta stvaramo pravi entity model `Animal` koji EF Core poznaje i koji se sprema u tablicu `Animals`. DTO služi za prijenos podataka između App-a i API-ja, a entity predstavlja zapis koji EF Core prati u radu s bazom.
+
+#### Što radi `_context.Animals.Add(animal);`?
+
+```csharp
+_context.Animals.Add(animal);
+```
+
+Ova linija **ne sprema još ništa u bazu**. Ona samo govori EF Core-u: “Ovaj novi objekt treba dodati u tablicu `Animals`.” EF Core tada označava objekt `animal` kao novi zapis koji treba ubaciti u bazu pri sljedećem spremanju.
+
+#### Što radi `await _context.SaveChangesAsync();`?
+
+```csharp
+await _context.SaveChangesAsync();
+```
+
+Tek ova linija stvarno izvršava promjenu u bazi. EF Core šalje SQL naredbu prema SQLite bazi i novi red se upisuje u tablicu. Nakon toga objekt `animal` više nije samo objekt u memoriji, nego stvarni zapis u bazi, a često tada dobije i novi `Id`.
+
+#### Zašto nakon spremanja radimo `var result = new AnimalDto`?
+
+```csharp
+var result = new AnimalDto
+{
+    Id = animal.Id,
+    Name = animal.Name,
+    Species = animal.Species,
+    Breed = animal.Breed,
+    Gender = animal.Gender,
+    Age = animal.Age,
+    ArrivalDate = animal.ArrivalDate,
+    IsAdopted = animal.IsAdopted,
+    ImageUrl = animal.ImageUrl,
+    Description = animal.Description
+};
+```
+
+Nakon spremanja ne vraćamo direktno entity `Animal`, nego stvaramo novi `AnimalDto`. Time zadržavamo isti obrazac kao i u prethodnoj lekciji: API prema App-u vraća DTO objekte, a ne interne EF Core entitete. To je čišće, sigurnije i dosljedno.
+
+#### Što znači `return CreatedAtAction(...)`?
+
+```csharp
+return CreatedAtAction(nameof(GetAnimalById), new { id = animal.Id }, result);
+```
+
+Ovo vraća HTTP status **201 Created**, što je standardni odgovor kada je novi zapis uspješno stvoren.
+
+Ovaj povrat dodatno govori dvije stvari:
+
+- `nameof(GetAnimalById)` upućuje na metodu kojom se može dohvatiti upravo stvoreni zapis
+- `new { id = animal.Id }` kaže koji ID treba koristiti u toj ruti
+- `result` je DTO objekt koji se šalje natrag u odgovoru
+
+To znači da API ne kaže samo “uspjelo je”, nego i vraća informaciju gdje se novostvoreni zapis nalazi i koji su njegovi podaci nakon spremanja.
+
+### Korak 2 – GET metoda za dohvat jedne životinje po ID-u
+
+Ova metoda služi za dohvat jednog konkretnog zapisa po identifikatoru. Posebno je važna kod stranice za uređivanje, jer prije prikaza forme moramo dohvatiti postojeće podatke iz baze.
+
+```csharp
+[HttpGet("{id}")]
+public async Task<ActionResult<AnimalDto>> GetAnimalById(int id)
+{
+    var animal = await _context.Animals.FindAsync(id);
+
+    if (animal is null)
+        return NotFound();
+
+    var dto = new AnimalDto
+    {
+        Id = animal.Id,
+        Name = animal.Name,
+        Species = animal.Species,
+        Breed = animal.Breed,
+        Gender = animal.Gender,
+        Age = animal.Age,
+        ArrivalDate = animal.ArrivalDate,
+        IsAdopted = animal.IsAdopted,
+        ImageUrl = animal.ImageUrl,
+        Description = animal.Description
+    };
+
+    return Ok(dto);
+}
+```
+
+#### Što znači `[HttpGet("{id}")]`?
+
+Ovaj atribut govori da se metoda pokreće kada API primi **GET zahtjev** na rutu poput:
+
+```text
+api/animals/5
+```
+
+Dio `{id}` znači da iz URL-a uzimamo vrijednost identifikatora i spremamo je u parametar `int id`.
+
+#### Što znači potpis metode?
+
+```csharp
+public async Task<ActionResult<AnimalDto>> GetAnimalById(int id)
+```
+
+- `GetAnimalById` je naziv metode
+- `int id` je identifikator zapisa koji tražimo
+- `ActionResult<AnimalDto>` znači da metoda može vratiti ili DTO objekt ili neki HTTP status, npr. `NotFound()`
+- `async` i `Task` znače da metoda asinkrono čeka rad s bazom
+
+#### Što radi `FindAsync(id)`?
+
+```csharp
+var animal = await _context.Animals.FindAsync(id);
+```
+
+Ovdje EF Core pokušava pronaći zapis u tablici `Animals` prema primarnom ključu. Ako zapis postoji, vraća objekt `Animal`. Ako ne postoji, rezultat je `null`.
+
+#### Zašto provjeravamo `if (animal is null)`?
+
+Ako zapis s tim ID-em ne postoji, nema smisla nastaviti s mapiranjem u DTO. Zato vraćamo:
+
+```csharp
+return NotFound();
+```
+
+To znači HTTP status **404 Not Found**.
+
+#### Zašto opet radimo `new AnimalDto`?
+
+API ne vraća direktno entity model baze, nego DTO. Time zadržavamo isti obrazac kao u prethodnoj lekciji: baza i EF Core ostaju u API sloju, a App prima samo podatke koji su pripremljeni za prijenos.
+
+#### Što znači `return Ok(dto);`?
+
+To vraća HTTP status **200 OK** i DTO objekt u tijelu odgovora. Upravo taj DTO kasnije u App projektu možeš dohvatiti pomoću `GetFromJsonAsync<AnimalDto>(...)`.
+
+### Korak 3 – PUT metoda za uređivanje postojećeg zapisa
+
+PUT metoda služi za ažuriranje već postojećeg zapisa. App šalje nove vrijednosti, a API pronalazi odgovarajuću životinju i upisuje promjene u bazu.
+
+```csharp
+[HttpPut("{id}")]
+public async Task<IActionResult> UpdateAnimal(int id, SaveAnimalDto dto)
+{
+    var animal = await _context.Animals.FindAsync(id);
+
+    if (animal is null)
+        return NotFound();
+
+    animal.Name = dto.Name;
+    animal.Species = dto.Species;
+    animal.Breed = dto.Breed;
+    animal.Gender = dto.Gender;
+    animal.Age = dto.Age;
+    animal.ArrivalDate = dto.ArrivalDate;
+    animal.IsAdopted = dto.IsAdopted;
+    animal.ImageUrl = dto.ImageUrl;
+    animal.Description = dto.Description;
+
+    await _context.SaveChangesAsync();
+    return NoContent();
+}
+```
+
+#### Što znači `[HttpPut("{id}")]`?
+
+To znači da se metoda pokreće za **PUT zahtjev** na rutu poput:
+
+```text
+api/animals/5
+```
+
+`PUT` koristimo kada želimo zamijeniti ili ažurirati postojeći zapis.
+
+#### Što znači potpis metode?
+
+```csharp
+public async Task<IActionResult> UpdateAnimal(int id, SaveAnimalDto dto)
+```
+
+- `int id` dolazi iz URL-a i govori koji zapis uređujemo
+- `SaveAnimalDto dto` dolazi iz tijela HTTP zahtjeva i nosi nove vrijednosti
+- `IActionResult` znači da metoda vraća HTTP odgovor, npr. `NotFound()` ili `NoContent()`
+
+#### Zašto opet prvo tražimo postojeći zapis?
+
+```csharp
+var animal = await _context.Animals.FindAsync(id);
+```
+
+Ne možemo ažurirati zapis koji ne postoji. Zato prvo provjeravamo postoji li životinja s tim ID-em.
+
+#### Što se događa u ovim linijama?
+
+```csharp
+animal.Name = dto.Name;
+animal.Species = dto.Species;
+...
+animal.Description = dto.Description;
+```
+
+Ovdje prepisujemo postojeći entity novim vrijednostima iz DTO objekta. EF Core već prati objekt `animal`, pa nakon promjene njegovih svojstava zna što treba ažurirati u bazi.
+
+#### Što radi `await _context.SaveChangesAsync();` u PUT metodi?
+
+I ovdje ta linija znači stvarno spremanje promjena u bazu. Bez nje bi promjene postojale samo u memoriji aplikacije i ne bi završile u tablici `Animals`.
+
+#### Zašto vraćamo `NoContent()`?
+
+```csharp
+return NoContent();
+```
+
+To znači HTTP status **204 No Content**. Time API govori: promjena je uspješno spremljena, ali nije potrebno vraćati dodatni sadržaj u odgovoru.
+
+### Korak 4 – DELETE metoda za brisanje
+
+DELETE metoda služi za uklanjanje postojećeg zapisa iz baze.
+
+```csharp
+[HttpDelete("{id}")]
+public async Task<IActionResult> DeleteAnimal(int id)
+{
+    var animal = await _context.Animals.FindAsync(id);
+
+    if (animal is null)
+        return NotFound();
+
+    _context.Animals.Remove(animal);
+    await _context.SaveChangesAsync();
+
+    return NoContent();
+}
+```
+
+#### Što znači `[HttpDelete("{id}")]`?
+
+To znači da se metoda pokreće kada API primi **DELETE zahtjev** na rutu poput:
+
+```text
+api/animals/5
+```
+
+Time jasno govorimo da želimo obrisati zapis s određenim ID-em.
+
+#### Zašto opet radimo `FindAsync(id)`?
+
+I kod brisanja prvo moramo pronaći zapis. Ako zapis ne postoji, nema što brisati i vraćamo `NotFound()`.
+
+#### Što radi `Remove(animal)`?
+
+```csharp
+_context.Animals.Remove(animal);
+```
+
+Time EF Core označava pronađeni objekt kao zapis koji treba obrisati iz baze.
+
+#### Zašto nakon toga opet ide `SaveChangesAsync()`?
+
+Kao i kod unosa i uređivanja, promjena se stvarno izvršava tek kada pozovemo:
+
+```csharp
+await _context.SaveChangesAsync();
+```
+
+Tek tada se u bazi izvršava brisanje.
+
+#### Zašto metoda vraća `NoContent()`?
+
+Ako je brisanje uspjelo, API vraća **204 No Content**. To je čest i ispravan odgovor za DELETE operacije kada nema potrebe vraćati dodatni objekt u odgovoru.
+
+### Cjeloviti sadržaj kontrolera nakon nadogradnje
 
 ```csharp
 using AzilEdu.Api.Data;
+using AzilEdu.Shared.DTOs;
 using AzilEdu.Shared.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace AzilEdu.Api.Services;
+namespace AzilEdu.Api.Controllers;
 
-public class AnimalService
+[ApiController]
+[Route("api/[controller]")]
+public class AnimalsController : ControllerBase
 {
     private readonly AzilEduDbContext _context;
 
-    public AnimalService(AzilEduDbContext context)
+    public AnimalsController(AzilEduDbContext context)
     {
         _context = context;
     }
 
-    public async Task<List<Animal>> GetAllAsync()
+    [HttpGet]
+    public async Task<ActionResult<List<AnimalDto>>> GetAnimals()
     {
-        return await _context.Animals
+        var animals = await _context.Animals
             .OrderBy(a => a.Name)
+            .Select(a => new AnimalDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Species = a.Species,
+                Breed = a.Breed,
+                Gender = a.Gender,
+                Age = a.Age,
+                ArrivalDate = a.ArrivalDate,
+                IsAdopted = a.IsAdopted,
+                ImageUrl = a.ImageUrl,
+                Description = a.Description
+            })
             .ToListAsync();
+
+        return Ok(animals);
     }
 
-    public async Task<Animal?> GetByIdAsync(int id)
-    {
-        return await _context.Animals.FirstOrDefaultAsync(a => a.Id == id);
-    }
-
-    public async Task AddAsync(Animal animal)
-    {
-        _context.Animals.Add(animal);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task UpdateAsync(Animal animal)
-    {
-        _context.Animals.Update(animal);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task DeleteAsync(int id)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<AnimalDto>> GetAnimalById(int id)
     {
         var animal = await _context.Animals.FindAsync(id);
 
         if (animal is null)
-            return;
+            return NotFound();
+
+        var dto = new AnimalDto
+        {
+            Id = animal.Id,
+            Name = animal.Name,
+            Species = animal.Species,
+            Breed = animal.Breed,
+            Gender = animal.Gender,
+            Age = animal.Age,
+            ArrivalDate = animal.ArrivalDate,
+            IsAdopted = animal.IsAdopted,
+            ImageUrl = animal.ImageUrl,
+            Description = animal.Description
+        };
+
+        return Ok(dto);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<AnimalDto>> CreateAnimal(SaveAnimalDto dto)
+    {
+        var animal = new Animal
+        {
+            Name = dto.Name,
+            Species = dto.Species,
+            Breed = dto.Breed,
+            Gender = dto.Gender,
+            Age = dto.Age,
+            ArrivalDate = dto.ArrivalDate,
+            IsAdopted = dto.IsAdopted,
+            ImageUrl = dto.ImageUrl,
+            Description = dto.Description
+        };
+
+        _context.Animals.Add(animal);
+        await _context.SaveChangesAsync();
+
+        var result = new AnimalDto
+        {
+            Id = animal.Id,
+            Name = animal.Name,
+            Species = animal.Species,
+            Breed = animal.Breed,
+            Gender = animal.Gender,
+            Age = animal.Age,
+            ArrivalDate = animal.ArrivalDate,
+            IsAdopted = animal.IsAdopted,
+            ImageUrl = animal.ImageUrl,
+            Description = animal.Description
+        };
+
+        return CreatedAtAction(nameof(GetAnimalById), new { id = animal.Id }, result);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateAnimal(int id, SaveAnimalDto dto)
+    {
+        var animal = await _context.Animals.FindAsync(id);
+
+        if (animal is null)
+            return NotFound();
+
+        animal.Name = dto.Name;
+        animal.Species = dto.Species;
+        animal.Breed = dto.Breed;
+        animal.Gender = dto.Gender;
+        animal.Age = dto.Age;
+        animal.ArrivalDate = dto.ArrivalDate;
+        animal.IsAdopted = dto.IsAdopted;
+        animal.ImageUrl = dto.ImageUrl;
+        animal.Description = dto.Description;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteAnimal(int id)
+    {
+        var animal = await _context.Animals.FindAsync(id);
+
+        if (animal is null)
+            return NotFound();
 
         _context.Animals.Remove(animal);
         await _context.SaveChangesAsync();
+
+        return NoContent();
     }
 }
 ```
-
-<InfoBox type="info" title="Što ovdje učenici trebaju razumjeti?">
-Nije cilj da samo prepišu metode. Moraju razumjeti da je servis mjesto gdje centraliziramo rad s bazom. Stranica tada samo zatraži podatke ili pošalje zahtjev servisu.
-</InfoBox>
-
-### Objašnjenje metoda
-
-<StepGrid>
-  <StepCard title="GetAllAsync()">
-    Dohvaća sve životinje iz baze i sortira ih po imenu.
-  </StepCard>
-  <StepCard title="GetByIdAsync(int id)">
-    Dohvaća jednu životinju po identifikatoru. Koristi se kod uređivanja.
-  </StepCard>
-  <StepCard title="AddAsync(Animal animal)">
-    Dodaje novi zapis u bazu i sprema promjene.
-  </StepCard>
-  <StepCard title="UpdateAsync(Animal animal)">
-    Ažurira postojeći zapis i sprema promjene.
-  </StepCard>
-  <StepCard title="DeleteAsync(int id)">
-    Pronalazi zapis, briše ga i sprema promjene.
-  </StepCard>
-</StepGrid>
-
-## 4. Registracija servisa u Program.cs
-
-Da bi aplikacija mogla koristiti servis, treba ga registrirati u DI container.
-
-U datoteci <code>Program.cs</code> dodaj:
-
-```csharp
-using AzilEdu.Api.Services;
-```
-
-Zatim registriraj servis:
-
-```csharp
-builder.Services.AddScoped<AnimalService>();
-```
-
-Idealno mjesto je uz ostale servise, nakon registracije <code>DbContext</code>-a.
-
-```csharp
-builder.Services.AddDbContext<AzilEduDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddScoped<AnimalService>();
-```
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-6/programcs-animalservice-registration.webp"
-  alt="Registracija AnimalService servisa u Program.cs"
-  caption="Predložena slika: programcs-animalservice-registration.webp — prikaži dio Program.cs datoteke gdje se vidi registracija DbContexta i AnimalService servisa. Upload u public/images/aziledu/predavanje-6/"
-/>
 
 ---
 
-## 5. Refaktor stranice za prikaz životinja
+## 5. Stranica za unos nove životinje
 
-Pretpostavimo da već imamo stranicu za prikaz svih životinja, npr. <code>Animals.razor</code>.
+Sada u App projektu radimo zasebnu stranicu za unos.
 
-Ranije je ta stranica možda direktno koristila <code>AzilEduDbContext</code>. Sada to mijenjamo tako da koristi <code>AnimalService</code>.
-
-### Staro razmišljanje
-
-- stranica direktno otvara bazu
-- stranica dohvaća podatke
-- stranica radi previše stvari odjednom
-
-### Novo razmišljanje
-
-- stranica traži podatke od servisa
-- servis radi s bazom
-- odgovornosti su jasnije odvojene
-
-### Primjer preuređene stranice Animals.razor
-
-```razor
-@page "/animals"
-@using AzilEdu.Api.Services
-@using AzilEdu.Shared.Models
-@inject AnimalService AnimalService
-@inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
-
-<PageTitle>Životinje</PageTitle>
-
-<MudText Typo="Typo.h4" Class="mb-4">Popis životinja</MudText>
-
-<MudButton Variant="Variant.Filled"
-           Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Add"
-           Href="/animals/create"
-           Class="mb-4">
-    Dodaj novu životinju
-</MudButton>
-
-@if (animals is null)
-{
-    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-}
-else if (!animals.Any())
-{
-    <MudAlert Severity="Severity.Info">
-        Trenutno nema unesenih životinja u bazi.
-    </MudAlert>
-}
-else
-{
-    <MudTable Items="animals" Hover="true" Striped="true" Dense="true">
-        <HeaderContent>
-            <MudTh>Ime</MudTh>
-            <MudTh>Vrsta</MudTh>
-            <MudTh>Pasmina</MudTh>
-            <MudTh>Dob</MudTh>
-            <MudTh>Datum dolaska</MudTh>
-            <MudTh>Udomljena</MudTh>
-            <MudTh>Akcije</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Ime">@context.Name</MudTd>
-            <MudTd DataLabel="Vrsta">@context.Species</MudTd>
-            <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
-            <MudTd DataLabel="Dob">@context.Age</MudTd>
-            <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
-            <MudTd DataLabel="Udomljena">@(context.IsAdopted ? "Da" : "Ne")</MudTd>
-            <MudTd DataLabel="Akcije">
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Primary"
-                           Size="Size.Small"
-                           OnClick="@(() => EditAnimal(context.Id))">
-                    Uredi
-                </MudButton>
-
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Error"
-                           Size="Size.Small"
-                           OnClick="@(() => OpenDeleteDialog(context))">
-                    Obriši
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
-
-@code {
-    private List<Animal>? animals;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadAnimalsAsync();
-    }
-
-    private async Task LoadAnimalsAsync()
-    {
-        animals = await AnimalService.GetAllAsync();
-    }
-
-    private void EditAnimal(int id)
-    {
-        NavigationManager.NavigateTo($"/animals/edit/{id}");
-    }
-
-    private void OpenDeleteDialog(Animal animal)
-    {
-        // Potvrdu brisanja ćemo dodati u sljedećem koraku.
-    }
-}
-```
-
-<CodePreviewSplit
-  title="MudTable prikaz životinja"
-  language="razor"
-  image="/images/aziledu/predavanje-6/previews/animal-table-refactored.webp"
-  imageAlt="Refaktorirana MudTable tablica za prikaz životinja"
-  imageCaption="Datoteka slike: animal-table-refactored.webp — prikaži tablicu sa stupcima i gumbima Uredi / Obriši. Upload u public/images/aziledu/predavanje-6/previews/"
-  code={`<MudTable Items="animals" Hover="true" Striped="true" Dense="true">
-    <HeaderContent>
-        <MudTh>Ime</MudTh>
-        <MudTh>Vrsta</MudTh>
-        <MudTh>Pasmina</MudTh>
-        <MudTh>Dob</MudTh>
-        <MudTh>Datum dolaska</MudTh>
-        <MudTh>Udomljena</MudTh>
-        <MudTh>Akcije</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Ime">@context.Name</MudTd>
-        <MudTd DataLabel="Vrsta">@context.Species</MudTd>
-        <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
-        <MudTd DataLabel="Dob">@context.Age</MudTd>
-        <MudTd DataLabel="Datum dolaska">@context.ArrivalDate.ToShortDateString()</MudTd>
-        <MudTd DataLabel="Udomljena">@(context.IsAdopted ? "Da" : "Ne")</MudTd>
-        <MudTd DataLabel="Akcije">
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
-                Uredi
-            </MudButton>
-            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small">
-                Obriši
-            </MudButton>
-        </MudTd>
-    </RowTemplate>
-</MudTable>`}
-/>
-
-<InfoBox type="info" title="Što je ovdje važna promjena?">
-Stranica više ne radi izravno s <code>DbContext</code>-om. Umjesto toga koristi <code>AnimalService</code>. To je glavna didaktička poruka ove lekcije.
-</InfoBox>
-
----
-
-## 6. Potvrda brisanja prije uklanjanja zapisa
-
-Brisanje bez potvrde je loša praksa. Dovoljno je jedan pogrešan klik i zapis nestaje.
-
-Za potvrdu možemo koristiti MudBlazor dialog. U ovoj lekciji pokazat ćemo jednostavnu varijantu.
-
-### 6.1 Injektiranje dialog servisa
-
-Na vrh stranice dodaj:
-
-```razor
-@inject IDialogService DialogService
-```
-
-### 6.2 Izrada jednostavne komponente za potvrdu brisanja
-
-Napravimo komponentu npr.:
+Najčešća lokacija je:
 
 ```text
-Components/DeleteAnimalDialog.razor
-```
-
-Sadržaj:
-
-```razor
-@inject MudDialogInstance MudDialog
-
-<MudDialog>
-    <DialogContent>
-        <MudText Typo="Typo.h6">Potvrda brisanja</MudText>
-        <MudText Class="mt-2">
-            Jeste li sigurni da želite obrisati životinju <strong>@AnimalName</strong>?
-        </MudText>
-    </DialogContent>
-    <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Odustani</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Confirm">
-            Obriši
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
-@code {
-    [Parameter] public string AnimalName { get; set; } = string.Empty;
-
-    private void Cancel() => MudDialog.Cancel();
-
-    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
-}
-```
-
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-6/delete-dialog-example.webp"
-  alt="Primjer dijaloga za potvrdu brisanja"
-  caption="Predložena slika: delete-dialog-example.webp — prikaži mali MudDialog s pitanjem o potvrdi brisanja. Upload u public/images/aziledu/predavanje-6/"
-/>
-
-### 6.3 Pozivanje dijaloga iz stranice
-
-U stranici za prikaz životinja dopuni metodu za brisanje:
-
-```razor
-private async Task OpenDeleteDialog(Animal animal)
-{
-    var parameters = new DialogParameters
-    {
-        { nameof(DeleteAnimalDialog.AnimalName), animal.Name }
-    };
-
-    var options = new DialogOptions
-    {
-        CloseOnEscapeKey = true,
-        MaxWidth = MaxWidth.ExtraSmall,
-        FullWidth = true
-    };
-
-    var dialog = await DialogService.ShowAsync<DeleteAnimalDialog>(
-        "Potvrda brisanja",
-        parameters,
-        options);
-
-    var result = await dialog.Result;
-
-    if (!result.Canceled)
-    {
-        await AnimalService.DeleteAsync(animal.Id);
-        Snackbar.Add("Životinja je uspješno obrisana.", Severity.Success);
-        await LoadAnimalsAsync();
-    }
-}
+AzilEdu.App/Components/Pages/AnimalsCreate.razor
 ```
 
 <CodePreviewSplit
-  title="Potvrda brisanja kroz MudDialog"
-  language="razor"
-  image="/images/aziledu/predavanje-6/previews/delete-dialog-flow.webp"
-  imageAlt="Tijek potvrde brisanja pomoću MudDialog komponente"
-  imageCaption="Datoteka slike: delete-dialog-flow.webp — prikaži otvoren dialog i tablicu u pozadini. Upload u public/images/aziledu/predavanje-6/previews/"
-  code={`private async Task OpenDeleteDialog(Animal animal)
-{
-    var parameters = new DialogParameters
-    {
-        { nameof(DeleteAnimalDialog.AnimalName), animal.Name }
-    };
-
-    var options = new DialogOptions
-    {
-        CloseOnEscapeKey = true,
-        MaxWidth = MaxWidth.ExtraSmall,
-        FullWidth = true
-    };
-
-    var dialog = await DialogService.ShowAsync<DeleteAnimalDialog>(
-        "Potvrda brisanja",
-        parameters,
-        options);
-
-    var result = await dialog.Result;
-
-    if (!result.Canceled)
-    {
-        await AnimalService.DeleteAsync(animal.Id);
-        Snackbar.Add("Životinja je uspješno obrisana.", Severity.Success);
-        await LoadAnimalsAsync();
-    }
-}`}
+  title='Lokacija datoteke `AnimalsCreate.razor`'
+  description='Lijevo je putanja stranice za unos, a desno preview otvorene Razor datoteke u App projektu.'
+  language="text"
+  fileName="animals-create-location.webp"
+  code={`AzilEdu.App/Components/Pages/AnimalsCreate.razor`}
 />
 
-<InfoBox type="warning" title="Zašto ponovno učitavamo podatke nakon brisanja?">
-Zato što se popis na ekranu mora osvježiti nakon promjene u bazi. Ako to ne napravimo, korisnik može i dalje vidjeti stari zapis na ekranu dok ne osvježi stranicu.
-</InfoBox>
+Opis slike: prikaz projekta `AzilEdu.App`, foldera `Components/Pages` i otvorene datoteke `AnimalsCreate.razor`.
 
----
-
-## 7. Poboljšanje validacije forme
-
-U prethodnoj lekciji već smo imali formu za unos ili uređivanje životinje. Sada je činimo ozbiljnijom.
-
-### 7.1 Primjer modela s DataAnnotations atributima
-
-Ako model još nema validaciju, možeš ga proširiti ovako:
-
-```csharp
-using System.ComponentModel.DataAnnotations;
-
-namespace AzilEdu.Shared.Models;
-
-public class Animal
-{
-    public int Id { get; set; }
-
-    [Required(ErrorMessage = "Ime je obavezno.")]
-    [StringLength(50, ErrorMessage = "Ime može imati najviše 50 znakova.")]
-    public string Name { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Vrsta je obavezna.")]
-    [StringLength(30, ErrorMessage = "Vrsta može imati najviše 30 znakova.")]
-    public string Species { get; set; } = string.Empty;
-
-    [StringLength(50, ErrorMessage = "Pasmina može imati najviše 50 znakova.")]
-    public string? Breed { get; set; }
-
-    [Range(0, 30, ErrorMessage = "Dob mora biti između 0 i 30 godina.")]
-    public int Age { get; set; }
-
-    [Required(ErrorMessage = "Datum dolaska je obavezan.")]
-    public DateTime ArrivalDate { get; set; } = DateTime.Today;
-
-    public bool IsAdopted { get; set; }
-}
-```
-
-<InfoBox type="info" title="Zašto validacija ide i u model?">
-Zato što pravila o podacima ne bi smjela živjeti samo u vizualnom dijelu forme. Model definira što je valjan podatak, a UI to pravilo samo prikazuje korisniku.
-</InfoBox>
-
-### 7.2 Primjer MudBlazor forme s validacijom
+### Korak 1 – injekcije i model forme
 
 ```razor
 @page "/animals/create"
-@using AzilEdu.Api.Services
-@using AzilEdu.Shared.Models
-@inject AnimalService AnimalService
-@inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+```
 
-<EditForm Model="animal" OnValidSubmit="SaveAnimalAsync">
+```razor
+@code {
+    private SaveAnimalDto model = new()
+    {
+        ArrivalDate = DateTime.Today,
+        ImageUrl = "/images/animals/placeholder.webp"
+    };
+
+    private DateTime? arrivalDate = DateTime.Today;
+}
+```
+
+### Korak 2 – forma za unos
+
+```razor
+<EditForm Model="@model" OnValidSubmit="SaveAnimal">
     <DataAnnotationsValidator />
-    <ValidationSummary />
 
-    <MudText Typo="Typo.h4" Class="mb-4">Dodavanje nove životinje</MudText>
+    <MudTextField @bind-Value="model.Name" Label="Ime" Required="true" />
+    <MudTextField @bind-Value="model.Species" Label="Vrsta" Required="true" />
+    <MudTextField @bind-Value="model.Breed" Label="Pasmina" />
+    <MudTextField @bind-Value="model.Gender" Label="Spol" />
+    <MudNumericField @bind-Value="model.Age" Label="Dob" />
+    <MudDatePicker @bind-Date="arrivalDate" Label="Datum dolaska" />
+    <MudCheckBox @bind-Value="model.IsAdopted" Label="Udomljena" />
+    <MudTextField @bind-Value="model.ImageUrl" Label="Putanja slike" />
+    <MudTextField @bind-Value="model.Description" Label="Opis" Lines="3" />
 
-    <MudTextField @bind-Value="animal.Name"
-                  Label="Ime"
-                  Variant="Variant.Outlined"
-                  For="@(() => animal.Name)"
-                  Class="mb-3" />
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+        Spremi
+    </MudButton>
+</EditForm>
+```
 
-    <MudTextField @bind-Value="animal.Species"
-                  Label="Vrsta"
-                  Variant="Variant.Outlined"
-                  For="@(() => animal.Species)"
-                  Class="mb-3" />
+### Korak 3 – slanje POST zahtjeva
 
-    <MudTextField @bind-Value="animal.Breed"
-                  Label="Pasmina"
-                  Variant="Variant.Outlined"
-                  For="@(() => animal.Breed)"
-                  Class="mb-3" />
+> `MudDatePicker` u ovoj formi vežemo na pomoćno nullable polje `arrivalDate`, a ne direktno na `model.ArrivalDate`, jer komponenta očekuje `DateTime?`. Tako izbjegavamo greške pri parsiranju forme i zadržavamo kontrolu nad vrijednošću koju šaljemo prema API-ju.
 
-    <MudNumericField @bind-Value="animal.Age"
-                     Label="Dob"
-                     Variant="Variant.Outlined"
-                     For="@(() => animal.Age)"
-                     Min="0"
-                     Max="30"
-                     Class="mb-3" />
 
-    <MudDatePicker @bind-Date="animal.ArrivalDate"
-                   Label="Datum dolaska"
-                   Variant="Variant.Outlined"
-                   Class="mb-3" />
+```razor
+@code {
+    private SaveAnimalDto model = new()
+    {
+        ArrivalDate = DateTime.Today,
+        ImageUrl = "/images/animals/placeholder.webp"
+    };
 
-    <MudCheckBox @bind-Value="animal.IsAdopted"
-                 Label="Udomljena" />
+    private DateTime? arrivalDate = DateTime.Today;
 
-    <MudStack Row="true" Spacing="2" Class="mt-4">
-        <MudButton ButtonType="ButtonType.Submit"
-                   Variant="Variant.Filled"
-                   Color="Color.Primary">
+    private async Task SaveAnimal()
+    {
+        model.ArrivalDate = arrivalDate;
+
+        var response = await Http.PostAsJsonAsync("api/animals", model);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/animals");
+        }
+    }
+}
+```
+
+### Cjeloviti sadržaj datoteke `AnimalsCreate.razor`
+
+```razor
+@page "/animals/create"
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" GutterBottom="true">Nova životinja</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    Na ovoj stranici unosimo novu životinju i podatke šaljemo prema API-ju preko POST zahtjeva.
+</MudText>
+
+<EditForm Model="@model" OnValidSubmit="SaveAnimal">
+    <DataAnnotationsValidator />
+
+    <MudStack Spacing="2">
+        <MudTextField @bind-Value="model.Name" Label="Ime" Required="true" />
+        <MudTextField @bind-Value="model.Species" Label="Vrsta" Required="true" />
+        <MudTextField @bind-Value="model.Breed" Label="Pasmina" />
+        <MudTextField @bind-Value="model.Gender" Label="Spol" />
+        <MudNumericField @bind-Value="model.Age" Label="Dob" />
+        <MudDatePicker @bind-Date="arrivalDate" Label="Datum dolaska" />
+        <MudCheckBox @bind-Value="model.IsAdopted" Label="Udomljena" />
+        <MudTextField @bind-Value="model.ImageUrl" Label="Putanja slike" />
+        <MudTextField @bind-Value="model.Description" Label="Opis" Lines="3" />
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
             Spremi
-        </MudButton>
-
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Secondary"
-                   OnClick="Cancel">
-            Odustani
         </MudButton>
     </MudStack>
 </EditForm>
 
 @code {
-    private Animal animal = new();
-
-    private async Task SaveAnimalAsync()
+    private SaveAnimalDto model = new()
     {
-        await AnimalService.AddAsync(animal);
-        Snackbar.Add("Nova životinja je uspješno spremljena.", Severity.Success);
-        NavigationManager.NavigateTo("/animals");
-    }
+        ArrivalDate = DateTime.Today,
+        ImageUrl = "/images/animals/placeholder.webp"
+    };
 
-    private void Cancel()
+    private DateTime? arrivalDate = DateTime.Today;
+
+    private async Task SaveAnimal()
     {
-        NavigationManager.NavigateTo("/animals");
+        model.ArrivalDate = arrivalDate;
+
+        var response = await Http.PostAsJsonAsync("api/animals", model);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/animals");
+        }
     }
 }
 ```
 
+---
+
+## 6. Stranica za uređivanje postojeće životinje
+
+Za uređivanje treba dohvatiti postojeći zapis po ID-u, popuniti formu i poslati PUT zahtjev.
+
+Najčešća lokacija je:
+
+```text
+AzilEdu.App/Components/Pages/AnimalsEdit.razor
+```
+
 <CodePreviewSplit
-  title="MudBlazor forma s boljom validacijom"
-  language="razor"
-  image="/images/aziledu/predavanje-6/previews/validated-animal-form.webp"
-  imageAlt="Forma za unos životinje s validacijom"
-  imageCaption="Datoteka slike: validated-animal-form.webp — prikaži formu s nekoliko polja i validacijskom porukom. Upload u public/images/aziledu/predavanje-6/previews/"
-  code={`<EditForm Model="animal" OnValidSubmit="SaveAnimalAsync">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <MudTextField @bind-Value="animal.Name"
-                  Label="Ime"
-                  Variant="Variant.Outlined"
-                  For="@(() => animal.Name)" />
-
-    <MudTextField @bind-Value="animal.Species"
-                  Label="Vrsta"
-                  Variant="Variant.Outlined"
-                  For="@(() => animal.Species)" />
-
-    <MudNumericField @bind-Value="animal.Age"
-                     Label="Dob"
-                     Variant="Variant.Outlined"
-                     For="@(() => animal.Age)"
-                     Min="0"
-                     Max="30" />
-
-    <MudDatePicker @bind-Date="animal.ArrivalDate"
-                   Label="Datum dolaska"
-                   Variant="Variant.Outlined" />
-
-    <MudButton ButtonType="ButtonType.Submit"
-               Variant="Variant.Filled"
-               Color="Color.Primary">
-        Spremi
-    </MudButton>
-</EditForm>`}
+  title='Lokacija datoteke `AnimalsEdit.razor`'
+  description='Lijevo je putanja stranice za uređivanje, a desno preview otvorene Razor datoteke u App projektu.'
+  language="text"
+  fileName="animals-edit-location.webp"
+  code={`AzilEdu.App/Components/Pages/AnimalsEdit.razor`}
 />
 
-### 7.3 Uređivanje postojeće životinje preko servisa
+Opis slike: prikaz projekta `AzilEdu.App`, foldera `Components/Pages` i otvorene datoteke `AnimalsEdit.razor`.
 
-Kod uređivanja je logika vrlo slična, ali prvo dohvaćamo postojeći zapis.
+### Korak 1 – ruta i dohvat ID parametra
 
 ```razor
-@page "/animals/edit/{id:int}"
-@using AzilEdu.Api.Services
-@using AzilEdu.Shared.Models
-@inject AnimalService AnimalService
-@inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
+@page "/animals/edit/{Id:int}"
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
 
-<EditForm Model="animal" OnValidSubmit="UpdateAnimalAsync">
+@code {
+    [Parameter] public int Id { get; set; }
+    private SaveAnimalDto model = new();
+    private DateTime? arrivalDate;
+}
+```
+
+### Korak 2 – učitavanje postojećih podataka
+
+```razor
+protected override async Task OnInitializedAsync()
+{
+    var animal = await Http.GetFromJsonAsync<AnimalDto>($"api/animals/{Id}");
+
+    if (animal is not null)
+    {
+        model = new SaveAnimalDto
+        {
+            Name = animal.Name,
+            Species = animal.Species,
+            Breed = animal.Breed,
+            Gender = animal.Gender,
+            Age = animal.Age,
+            ArrivalDate = animal.ArrivalDate,
+            IsAdopted = animal.IsAdopted,
+            ImageUrl = animal.ImageUrl,
+            Description = animal.Description
+        };
+
+        arrivalDate = animal.ArrivalDate;
+    }
+}
+```
+
+### Korak 3 – slanje PUT zahtjeva
+
+```razor
+private async Task UpdateAnimal()
+{
+    model.ArrivalDate = arrivalDate;
+
+    var response = await Http.PutAsJsonAsync($"api/animals/{Id}", model);
+
+    if (response.IsSuccessStatusCode)
+    {
+        Navigation.NavigateTo("/animals");
+    }
+}
+```
+
+### Cjeloviti sadržaj datoteke `AnimalsEdit.razor`
+
+```razor
+@page "/animals/edit/{Id:int}"
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" GutterBottom="true">Uredi životinju</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    Na ovoj stranici dohvaćamo postojeći zapis i spremamo promjene preko PUT zahtjeva.
+</MudText>
+
+<EditForm Model="@model" OnValidSubmit="UpdateAnimal">
     <DataAnnotationsValidator />
-    <ValidationSummary />
 
-    <!-- Ovdje ide ista ili vrlo slična forma kao kod dodavanja -->
+    <MudStack Spacing="2">
+        <MudTextField @bind-Value="model.Name" Label="Ime" Required="true" />
+        <MudTextField @bind-Value="model.Species" Label="Vrsta" Required="true" />
+        <MudTextField @bind-Value="model.Breed" Label="Pasmina" />
+        <MudTextField @bind-Value="model.Gender" Label="Spol" />
+        <MudNumericField @bind-Value="model.Age" Label="Dob" />
+        <MudDatePicker @bind-Date="arrivalDate" Label="Datum dolaska" />
+        <MudCheckBox @bind-Value="model.IsAdopted" Label="Udomljena" />
+        <MudTextField @bind-Value="model.ImageUrl" Label="Putanja slike" />
+        <MudTextField @bind-Value="model.Description" Label="Opis" Lines="3" />
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+            Spremi promjene
+        </MudButton>
+    </MudStack>
 </EditForm>
 
 @code {
     [Parameter] public int Id { get; set; }
 
-    private Animal animal = new();
+    private SaveAnimalDto model = new();
+    private DateTime? arrivalDate;
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await AnimalService.GetByIdAsync(Id);
+        var animal = await Http.GetFromJsonAsync<AnimalDto>($"api/animals/{Id}");
 
-        if (result is null)
+        if (animal is not null)
         {
-            Snackbar.Add("Tražena životinja nije pronađena.", Severity.Error);
-            NavigationManager.NavigateTo("/animals");
-            return;
-        }
+            model = new SaveAnimalDto
+            {
+                Name = animal.Name,
+                Species = animal.Species,
+                Breed = animal.Breed,
+                Gender = animal.Gender,
+                Age = animal.Age,
+                ArrivalDate = animal.ArrivalDate,
+                IsAdopted = animal.IsAdopted,
+                ImageUrl = animal.ImageUrl,
+                Description = animal.Description
+            };
 
-        animal = result;
+            arrivalDate = animal.ArrivalDate;
+        }
     }
 
-    private async Task UpdateAnimalAsync()
+    private async Task UpdateAnimal()
     {
-        await AnimalService.UpdateAsync(animal);
-        Snackbar.Add("Podaci o životinji su uspješno ažurirani.", Severity.Success);
-        NavigationManager.NavigateTo("/animals");
+        model.ArrivalDate = arrivalDate;
+
+        var response = await Http.PutAsJsonAsync($"api/animals/{Id}", model);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/animals");
+        }
     }
 }
 ```
 
-<ScreenshotFigure
-  src="/images/aziledu/predavanje-6/edit-animal-form.webp"
-  alt="Forma za uređivanje postojeće životinje"
-  caption="Predložena slika: edit-animal-form.webp — prikaži formu za uređivanje s već popunjenim podacima. Upload u public/images/aziledu/predavanje-6/"
-/>
+---
+
+## 7. Dodavanje akcija na `Animals.razor`
+
+Sada na postojeću tablicu dodajemo stupac s akcijama.
+
+### Korak 1 – dodaj header za akcije
+
+```razor
+<MudTh>Akcije</MudTh>
+```
+
+### Korak 2 – dodaj gumbe za uređivanje i brisanje
+
+```razor
+<MudTd>
+    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/animals/edit/{context.Id}")">
+        Uredi
+    </MudButton>
+    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => DeleteAnimal(context.Id))">
+        Obriši
+    </MudButton>
+</MudTd>
+```
+
+### Korak 3 – metoda za brisanje u `@code` dijelu
+
+```razor
+private async Task DeleteAnimal(int id)
+{
+    var response = await Http.DeleteAsync($"api/animals/{id}");
+
+    if (response.IsSuccessStatusCode)
+    {
+        animals = animals.Where(a => a.Id != id).ToList();
+    }
+}
+```
+
+
+### Kako radi DELETE zahtjev?
+
+Kada klikneš gumb `Obriši`, Blazor App poziva:
+
+```razor
+await Http.DeleteAsync($"api/animals/{id}");
+```
+
+Taj poziv šalje HTTP DELETE zahtjev na rutu poput `api/animals/5`.
+
+Na API strani metoda:
+
+```csharp
+[HttpDelete("{id}")]
+public async Task<IActionResult> DeleteAnimal(int id)
+```
+
+radi sljedeće:
+
+- iz URL-a prima `id`
+- traži odgovarajući zapis u bazi
+- ako zapis ne postoji, vraća `NotFound()`
+- ako zapis postoji, uklanja ga iz konteksta pomoću `_context.Animals.Remove(animal);`
+- `await _context.SaveChangesAsync();` trajno briše zapis iz baze
+- `return NoContent();` javlja da je brisanje uspjelo
+
+Nakon uspješnog DELETE zahtjeva, App odmah ažurira lokalnu listu i zato se obrisani redak više ne prikazuje u tablici.
+
+### Napomena o potvrdi prije brisanja
+
+U ozbiljnijoj verziji bilo bi dobro prije brisanja tražiti potvrdu kroz dijalog. Ovdje zadržavamo jednostavniju varijantu da prvo razumiješ osnovni tok DELETE zahtjeva.
 
 ---
 
-## 8. Što smo postigli ovim refaktorom?
+## 8. Dodavanje gumba za novu životinju
 
-<LessonSummary>
-  <ul>
-    <li>Rad s bazom izdvojili smo u <strong>AnimalService</strong>.</li>
-    <li>Stranice su postale čišće i preglednije.</li>
-    <li>Brisanje više nije opasno jer postoji potvrda.</li>
-    <li>Forma je dobila bolju validaciju i smislenije poruke.</li>
-    <li>Projekt je sada mnogo spremniji za daljnju nadogradnju.</li>
-  </ul>
-</LessonSummary>
+Na vrh `Animals.razor` stranice dodaj gumb koji vodi na formu za unos.
 
-## 9. Najčešće greške učenika
+```razor
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/animals/create" Class="mb-4">
+    Nova životinja
+</MudButton>
+```
 
-<Checklist>
-  <li>Servis su napravili, ali ga nisu registrirali u <code>Program.cs</code>.</li>
-  <li>Na stranici su i dalje ostavili stari kod koji direktno koristi <code>DbContext</code>.</li>
-  <li>Nakon brisanja nisu ponovno učitali podatke.</li>
-  <li>Za <code>EditForm</code> nisu dodali <code>DataAnnotationsValidator</code>.</li>
-  <li>Koriste <code>OnClick</code> umjesto <code>OnValidSubmit</code> za spremanje forme.</li>
-  <li>Kod uređivanja nisu provjerili što se događa ako zapis ne postoji.</li>
-</Checklist>
+Tako povezujemo listu i formu za unos u jednu cjelinu.
 
-## 10. Vježba na satu
+---
 
-1. Napravi klasu <code>AnimalService</code>.
-2. Registriraj servis u <code>Program.cs</code>.
-3. Refaktoriraj stranicu za prikaz životinja tako da koristi servis.
-4. Dodaj MudDialog potvrdu prije brisanja.
-5. Poboljšaj validaciju modela <code>Animal</code>.
-6. Provjeri rade li:
-   - dodavanje
-   - uređivanje
-   - brisanje
-   - osvježavanje popisa nakon promjene
+## 9. Što sada treba provjeriti
 
-## 11. Domaći zadatak
+Nakon pokretanja projekta provjeri:
 
-<InfoBox type="success" title="Zadatak za samostalni rad">
-Nadogradi postojeći CRUD tako da:
+- otvara li se lista životinja
+- radi li gumb `Nova životinja`
+- sprema li se novi zapis u bazu
+- otvara li se stranica za uređivanje postojećeg zapisa
+- spremaju li se promjene preko PUT zahtjeva
+- briše li se zapis preko DELETE zahtjeva
+- vraća li se pregled na listu bez greške
 
-- dodaš polje <code>Description</code> u model <code>Animal</code>
-- napraviš novu migraciju
-- prikažeš opis u formi i po želji u tablici
-- dodaš validaciju da opis može imati najviše 300 znakova
+<InfoBox type="success" title="Što je stvarni rezultat ove lekcije">
+Sada imaš puni CUD tok preko API-ja. App šalje zahtjeve, API obrađuje podatke, baza se ažurira, a UI prikazuje rezultat. To je već ozbiljan korak prema stvarnoj poslovnoj aplikaciji.
 </InfoBox>
 
-To je dobar zadatak jer učenik mora razumjeti cijeli tok:
+---
 
-- promjena modela
-- migracija baze
-- promjena forme
-- promjena prikaza
-- spremanje i ažuriranje podataka
 
-## 12. Zaključak
+<InfoBox type="info" title="Dvije važne napomene za ozbiljniju aplikaciju">
+U ovoj lekciji zadržavamo jednostavniji tutorial pristup. Zato nakon `POST`, `PUT` i `DELETE` zahtjeva ne prikazujemo još posebne poruke o grešci korisniku, nego samo provjeravamo `IsSuccessStatusCode`. U ozbiljnijoj aplikaciji tu bi bilo dobro dodati `MudAlert`, `Snackbar` ili sličan vizualni feedback.
 
-U ovoj lekciji nismo dodali novu veliku domensku funkcionalnost, ali smo projekt učinili znatno kvalitetnijim.
+Također, `HttpClient` u ovom projektu koristi unaprijed postavljenu API adresu radi jednostavnijeg praćenja lekcije. Kasnije je bolje tu adresu premjestiti u konfiguraciju aplikacije, a ne ostavljati je hardkodiranu u kodu.
+</InfoBox>
 
-To je važna poruka za učenike: razvoj aplikacije nije samo stalno dodavanje novih ekrana, nego i **uređivanje, refaktoriranje i poboljšavanje postojećeg koda**.
+## 10. Domaći rad: CUD za `HousingUnits`
 
-U sljedećoj lekciji možemo prirodno nastaviti s jednom od ove dvije opcije:
+Domaći rad se direktno nastavlja na prethodni domaći u kojem je modul `HousingUnits` već imao DTO i GET dohvat preko API-ja. Sada na isti modul treba prenijeti puni CUD obrazac koji smo na satu napravili za `Animals`.
 
-- detaljni prikaz pojedine životinje
-- filtriranje, pretraživanje i sortiranje popisa životinja
+### Datoteke koje trebaš napraviti ili urediti
 
-Obje opcije imaju smisla, ali nakon ove lekcije projekt je napokon dovoljno uređen da ga možemo širiti bez kaosa.
+1. `Shared/DTOs/SaveHousingUnitDto.cs`
+2. `AzilEdu.Api/Controllers/HousingUnitsController.cs`
+3. `AzilEdu.App/Components/Pages/HousingUnits.razor`
+4. `AzilEdu.App/Components/Pages/HousingUnitsCreate.razor`
+5. `AzilEdu.App/Components/Pages/HousingUnitsEdit.razor`
+
+### Predloženi DTO za spremanje
+
+```csharp
+namespace AzilEdu.Shared.DTOs;
+
+public class SaveHousingUnitDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string UnitType { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public int Occupied { get; set; }
+    public bool IsFull { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+}
+```
+
+### Točno što treba napraviti
+
+#### 1. U API kontroleru dodaj pune CUD metode
+
+U `HousingUnitsController` napravi ili dovrši ove metode:
+
+- `GET` za listu
+- `GET by id`
+- `POST`
+- `PUT`
+- `DELETE`
+
+Svaka metoda treba koristiti isti obrazac kao u `AnimalsController`:
+- API prima `SaveHousingUnitDto`
+- po potrebi radi mapiranje u entity
+- sprema promjene preko `_context.SaveChangesAsync()`
+- vraća odgovarajući HTTP odgovor
+
+#### 2. Napravi stranicu `HousingUnitsCreate.razor`
+
+Na toj stranici treba postojati forma za unos nove smještajne jedinice. Forma mora imati polja:
+
+- naziv jedinice
+- tip jedinice
+- kapacitet
+- broj zauzetih mjesta
+- status `IsFull`
+- putanju slike
+
+Nakon klika na gumb za spremanje stranica mora poslati **POST zahtjev** prema API-ju i nakon uspješnog unosa vratiti se na listu `HousingUnits`.
+
+#### 3. Napravi stranicu `HousingUnitsEdit.razor`
+
+Na toj stranici treba:
+- iz URL-a uzeti ID
+- dohvatiti postojeći zapis preko `GET by id`
+- popuniti formu postojećim vrijednostima
+- poslati promjene prema API-ju preko **PUT zahtjeva**
+- nakon uspješnog spremanja vratiti se na listu
+
+#### 4. Nadogradi `HousingUnits.razor`
+
+Na postojećoj listi treba dodati:
+- gumb `Nova jedinica`
+- stupac `Akcije`
+- gumb `Uredi`
+- gumb `Obriši`
+
+Klik na `Obriši` mora slati **DELETE zahtjev** prema API-ju i nakon uspjeha odmah maknuti zapis s liste ili ponovno učitati podatke.
+
+### Kako gotov rad mora izgledati
+
+Na kraju domaćeg mora biti moguće:
+
+1. otvoriti listu `HousingUnits`
+2. kliknuti `Nova jedinica`
+3. unijeti novu jedinicu i spremiti je u bazu
+4. otvoriti postojeću jedinicu kroz `Uredi`
+5. promijeniti podatke i spremiti ih
+6. obrisati jedinicu preko gumba `Obriši`
+7. vidjeti da su se promjene stvarno zapisale u bazi i na listi
+
+### Minimalni uvjet za potpuno rješenje
+
+Domaći se smatra dovršenim tek kada:
+- sve tri operacije `POST`, `PUT` i `DELETE` rade bez greške
+- postoji DTO za spremanje
+- App ne pristupa direktno bazi nego sve ide preko API-ja
+- forme i lista vizualno prate stil ostatka aplikacije
+
+## 11. Sažetak lekcije
+
+U ovoj lekciji složili smo puni CUD tok za modul `Animals`.
+
+- **Create** radi tako da App preko forme šalje `POST` zahtjev s `SaveAnimalDto` objektom, API iz tog DTO-a stvara `Animal` entity, sprema ga u bazu i vraća odgovor `201 Created`.
+- **Read by id** služi za dohvat jednog zapisa. Taj korak je posebno važan kod uređivanja jer prvo moramo napuniti formu postojećim podacima.
+- **Update** radi tako da App pošalje `PUT` zahtjev s novim vrijednostima, API pronađe postojeći zapis, promijeni njegova svojstva i spremi promjene u bazu.
+- **Delete** radi tako da App pošalje `DELETE` zahtjev, API pronađe zapis, označi ga za brisanje i nakon `SaveChangesAsync()` ukloni ga iz baze.
+- Na Razor stranicama `AnimalsCreate.razor` i `AnimalsEdit.razor` forma ne razgovara s bazom direktno, nego uvijek preko `HttpClient` i API kontrolera.
+- Isti obrazac sada treba samostalno prenijeti na modul `HousingUnits`.
+
+<InfoBox type="success" title="Glavna poruka lekcije">
+Blazor App prikuplja i šalje podatke, API kontroler obrađuje zahtjev, EF Core sprema promjene u bazu, a zatim se rezultat vraća natrag prema korisničkom sučelju. To je osnovni obrazac rada za ozbiljniju višeslojnu aplikaciju.
+</InfoBox>

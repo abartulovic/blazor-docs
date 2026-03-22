@@ -1,130 +1,108 @@
 ---
 title: "Predavanje 7 - Pretraga, filtriranje i sortiranje popisa životinja"
-description: "MudTable pretraga, filter i sortiranje nad stvarnim podacima iz baze u AzilEdu projektu."
+description: "Nadogradnja postojeće Animals stranice: pretraga, filteri i sortiranje nad podacima koji dolaze iz API-ja."
 ---
 
 <LessonHero
   eyebrow="AzilEdu • Predavanje 7"
   title="Pretraga, filtriranje i sortiranje popisa životinja"
-  subtitle="U ovoj lekciji postojeći popis životinja pretvaramo u stvarno upotrebljiv pregled podataka. Učenici dodaju pretragu, filtriranje i sortiranje nad stvarnim zapisima iz baze, ali i uče što MudTable daje automatski, a što ipak moraju sami povezati."
-  badges={["Blazor", "MudBlazor", "MudTable", "Baza podataka", "CRUD nastavak"]}
+  subtitle="U ovoj lekciji nadograđujemo postojeću stranicu Animals iz prethodnih lekcija. Popis koji već dohvaća podatke preko HTTP + DTO pristupa sada pretvaramo u pregled koji je stvarno upotrebljiv: dodajemo tražilicu, filtere i sortiranje."
+  badges={["Blazor", "MudBlazor", "MudTable", "HTTP + DTO", "Nastavak Lekcije 6"]}
 />
 
-<InfoBox type="info" title="Zašto ovo radimo tek sada?">
-Sada već imamo osnovni CRUD nad tablicom <code>Animals</code>. To znači da učenici više ne gledaju samo statične ili testne podatke, nego rade nad stvarnim zapisima iz baze. Tek u toj fazi pretraga, filter i sortiranje imaju pravi smisao, jer učenik vidi kako korisnik stvarno pronalazi podatke u aplikaciji.
+<InfoBox type="info" title="Važna didaktička napomena">
+Ova lekcija se izravno nastavlja na Lekciju 6. To znači da ne izrađujemo novu stranicu od nule, nego nadograđujemo postojeći <code>Animals.razor</code> koji već dohvaća podatke preko <code>HttpClient</code>-a iz API-ja i prikazuje ih u <code>MudTable</code> tablici.
 </InfoBox>
-
-## Ishodi ove lekcije
-
-Nakon ove lekcije učenik bi trebao moći:
-
-- objasniti razliku između **pretrage**, **filtriranja** i **sortiranja**
-- dodati **search** polje iznad postojeće MudTable tablice
-- povezati **MudTable** s logikom koja filtrira retke
-- omogućiti sortiranje po važnim stupcima
-- dodati jednostavne filtere, npr. po vrsti životinje i statusu udomljenja
-- razumjeti što MudTable nudi ugrađeno, a što mora napisati sam
 
 ## Što već imamo prije početka?
 
 Do ove lekcije projekt već sadrži:
 
-- model <code>Animal</code>
-- tablicu <code>Animals</code> u bazi
-- EF Core i migracije
-- prikaz popisa životinja iz baze
-- unos, uređivanje i brisanje životinja
-- osnovni servis ili logiku za dohvat podataka
+- model <code>Animal</code> u zajedničkom sloju
+- DTO klase <code>AnimalDto</code> i <code>SaveAnimalDto</code>
+- <code>AnimalsController</code> s GET, POST, PUT i DELETE metodama
+- stranicu <code>Animals.razor</code> koja dohvaća listu iz API-ja
+- stranice za unos, uređivanje i brisanje zapisa
 
-To znači da se u ovoj lekciji **ne vraćamo na bazu od nule**, nego nadograđujemo postojeću stranicu za prikaz životinja.
+To znači da se ovdje fokus premješta s osnovnog CRUD-a na **rad s većim popisom podataka**.
 
 ---
 
-## Važan koncept: pretraga, filter i sortiranje nisu ista stvar
+## Zašto sada uvodimo pretragu, filtriranje i sortiranje?
+
+Kad tablica ima dva ili tri zapisa, gotovo sve je pregledno i bez dodatne logike. Kad broj zapisa naraste, korisnik više ne želi ručno pregledavati red po red. Zato uvodimo tri različita mehanizma:
+
+- **pretragu** – da se brzo pronađu zapisi koji sadrže određeni pojam
+- **filtriranje** – da se prikaže samo dio zapisa koji zadovoljava neki uvjet
+- **sortiranje** – da se isti zapisi poslože preglednijim redoslijedom
 
 <ConceptGrid>
   <ConceptCard title="Pretraga" icon="search">
-    Pretraga znači da korisnik u jedno polje upisuje pojam, a aplikacija pokušava pronaći sve retke koji sadrže taj pojam u jednom ili više polja, npr. u imenu životinje ili pasmini.
+    Korisnik upisuje pojam, a tablica pokušava pronaći zapise koji taj pojam sadrže u jednom ili više polja, npr. u imenu, pasmini ili opisu.
   </ConceptCard>
   <ConceptCard title="Filtriranje" icon="filter_alt">
-    Filtriranje znači da korisnik postavlja uvjet, npr. da želi vidjeti samo pse ili samo životinje koje nisu udomljene.
+    Korisnik postavlja uvjet, npr. želi vidjeti samo pse ili samo životinje koje još nisu udomljene.
   </ConceptCard>
   <ConceptCard title="Sortiranje" icon="swap_vert">
-    Sortiranje znači da ne skrivamo podatke, nego samo mijenjamo redoslijed prikaza, npr. od A do Ž, od najmlađe do najstarije ili od najnovijeg do najstarijeg datuma dolaska.
+    Svi podaci ostaju vidljivi, ali mijenjamo njihov redoslijed, npr. po imenu ili datumu dolaska.
   </ConceptCard>
 </ConceptGrid>
 
-<InfoBox type="warning" title="Tipična pogreška učenika">
-Učenici često misle da je sve to "isto" jer se sve radi iznad iste tablice. To nije točno. Pretraga pronalazi, filter sužava skup podataka, a sortiranje samo mijenja njihov redoslijed.
-</InfoBox>
+---
+
+## Što MudTable daje gotovim mogućnostima, a što ipak moramo napisati?
+
+<code>MudTable</code> je vrlo korisna komponenta, ali ne zna sama:
+
+- po kojim poljima želiš pretraživati
+- koje filtere želiš ponuditi korisniku
+- kako želiš prikazivati prazne vrijednosti
+- koje stupce želiš učiniti sortirajućima
+
+Zato ćemo dio posla prepustiti komponenti, a dio ćemo napisati sami.
 
 ---
 
-## Što MudTable može sama, a što ipak moramo napisati?
+## Korak 1 — Nadogradnja postojeće stranice novim poljima
 
-MudTable podržava tablični prikaz, paginaciju, sortiranje i filtriranje, ali ne znači da će aplikacija sama pogoditi kako ti želiš da korisnik pretražuje podatke. Komponenta daje mogućnosti, ali logiku pretrage i filtera često i dalje definira programer.
+Na vrhu postojećeg <code>Animals.razor</code> dokumenta u <code>@code</code> dijelu dodaj polja koja će upravljati tablicom.
 
-To praktično znači:
+~~~csharp
+private List<AnimalDto> animals = new();
+private string searchString = string.Empty;
+private string? selectedSpecies;
+private bool? adoptedFilter;
+~~~
 
-- **sortiranje** možemo relativno uredno povezati kroz zaglavlja stupaca
-- **pretragu** obično moramo vezati uz <code>MudTextField</code> i vlastitu filter funkciju
-- **posebne filtere** poput "prikaži samo pse" ili "prikaži samo neudomljene" također moramo sami osmisliti
+### Što svako polje radi?
 
-<InfoBox type="success" title="Glavna ideja lekcije">
-Ne učimo učenike da komponenta "magijom" sve rješava sama. Učimo ih kako iskoristiti mogućnosti komponente i povezati ih s vlastitim podacima i poslovnom logikom.
-</InfoBox>
-
----
-
-## Korak 1 — Priprema stranice za rad s pretragom i filterima
-
-Na postojećoj stranici s popisom životinja dodajemo nekoliko novih svojstava koja će upravljati prikazom tablice.
-
-Prvo definiramo polja za:
-
-- tekst pretrage
-- odabranu vrstu životinje
-- status udomljenja
-
-Kod može izgledati ovako:
-
-```razor
-@code {
-    private string searchString = string.Empty;
-    private string? selectedSpecies;
-    private bool? adoptedFilter = null;
-}
-```
-
-### Objašnjenje
-
-- <code>searchString</code> sadrži tekst koji korisnik upisuje u tražilicu
-- <code>selectedSpecies</code> služi za izbor vrste, npr. pas, mačka ili ptica
-- <code>adoptedFilter</code> je nullable <code>bool</code>, što znači da može imati tri stanja:
-  - <code>true</code> → prikazuj samo udomljene
-  - <code>false</code> → prikazuj samo neudomljene
+- <code>animals</code> sadrži listu DTO objekata koje dohvaćamo iz API-ja
+- <code>searchString</code> čuva tekst upisan u tražilicu
+- <code>selectedSpecies</code> pamti odabranu vrstu životinje
+- <code>adoptedFilter</code> je <code>bool?</code>, pa može imati tri stanja:
+  - <code>true</code> → prikaži samo udomljene
+  - <code>false</code> → prikaži samo one koje nisu udomljene
   - <code>null</code> → ne filtriraj po statusu
 
-To treće stanje je važno jer korisnik ponekad želi vidjeti sve zapise.
+Ovaj treći slučaj je važan. Nije uvijek cilj odmah filtrirati podatke. Ponekad samo želiš vratiti tablicu u početno stanje.
 
 ---
 
-## Korak 2 — Dodavanje UI elemenata iznad tablice
+## Korak 2 — Traka za pretragu i filtere iznad tablice
 
-Prije same tablice dodajemo prostor s kontrolama za pretragu i filtriranje.
+Iznad postojeće tablice dodaj kontrole koje će upravljati prikazom podataka.
 
 <CodePreviewSplit
-  title="Tražilica i filteri iznad tablice"
-  image="/images/aziledu/predavanje-7/previews/animal-list-search-filters.webp"
-  imageAlt="Prikaz trake za pretragu i filtere iznad MudTable tablice"
-  imageCaption="Datoteka slike: animal-list-search-filters.webp"
-  imageDescription="Prikaži stranicu Animals s gornjom trakom koja sadrži tekstualnu tražilicu, padajući izbornik za Species i odabir statusa udomljenja."
+  title="Traka za pretragu i filtere"
+  image="/images/aziledu/predavanje-7/animals-search-and-filters.webp"
+  imageAlt="Traka iznad tablice Animals s tražilicom i dva filtera"
+  imageDescription="Prikaži stranicu Animals s tekstualnom tražilicom, odabirom vrste životinje i odabirom statusa udomljenja."
   code={`<MudPaper Class="pa-4 mb-4">
     <MudGrid>
         <MudItem xs="12" md="4">
             <MudTextField @bind-Value="searchString"
                           Label="Pretraži životinje"
-                          Placeholder="Upiši ime, pasminu ili opis..."
+                          Placeholder="Ime, pasmina ili opis"
                           Variant="Variant.Outlined"
                           Immediate="true"
                           Adornment="Adornment.Start"
@@ -159,29 +137,23 @@ Prije same tablice dodajemo prostor s kontrolama za pretragu i filtriranje.
   language="razor"
 />
 
-### Što ovdje učenik treba razumjeti?
+### Zašto su ove kontrole važne?
 
-Ovdje nije poanta samo "dodati još tri kontrole", nego razumjeti da sada korisnik upravlja prikazom tablice.
+Ovdje ne dodajemo samo „još tri vizualna elementa“. Dodajemo način na koji korisnik upravlja podacima.
 
-- <code>MudTextField</code> omogućuje unos pojma za pretragu
-- <code>Immediate="true"</code> znači da se vrijednost ažurira odmah tijekom tipkanja
-- <code>MudSelect</code> omogućuje izbor filtriranja po vrsti i statusu
-- <code>Clearable="true"</code> omogućuje brzo vraćanje na stanje bez filtera
-
-<InfoBox type="info" title="Zašto je Immediate koristan?">
-Bez opcije <code>Immediate="true"</code> promjena se često ne vidi odmah tijekom pisanja. Za tražilicu je praktičnije da korisnik dobiva rezultat čim upisuje pojam.
-</InfoBox>
+- <code>MudTextField</code> služi za slobodnu pretragu
+- <code>Immediate="true"</code> znači da se rezultat mijenja odmah tijekom tipkanja
+- <code>MudSelect</code> omogućuje jasan odabir filtera
+- <code>Clearable="true"</code> omogućuje brzo vraćanje na prikaz bez filtera
 
 ---
 
-## Korak 3 — Pisanje filter funkcije
+## Korak 3 — Funkcija koja odlučuje prikazuje li se redak u tablici
 
-Sada trebamo definirati logiku koja će odlučiti prikazuje li se pojedini redak u tablici ili ne.
+Sad trebamo napisati metodu koja za svaki zapis odlučuje ostaje li vidljiv ili ne.
 
-Kod može izgledati ovako:
-
-```csharp
-private bool FilterAnimals(Animal animal)
+~~~csharp
+private bool FilterAnimals(AnimalDto animal)
 {
     if (!string.IsNullOrWhiteSpace(searchString))
     {
@@ -210,68 +182,64 @@ private bool FilterAnimals(Animal animal)
 
     return true;
 }
-```
+~~~
 
-### Objašnjenje logike
+### Kako ova metoda radi?
 
-Ova metoda prima jedan objekt <code>Animal</code> i vraća:
+Metoda prima jedan objekt <code>AnimalDto</code> i na kraju vraća:
 
-- <code>true</code> ako taj zapis treba ostati vidljiv u tablici
+- <code>true</code> ako zapis treba ostati prikazan
 - <code>false</code> ako ga treba sakriti
 
-Logika radi ovim redoslijedom:
+Redoslijed je ovakav:
 
-1. ako korisnik nije upisao ništa u tražilicu, taj dio se preskače
-2. ako jest, provjerava se sadrži li ime, pasmina ili opis traženi pojam
-3. ako je odabrana vrsta životinje, provjerava se podudara li se zapis s tom vrstom
-4. ako je odabran status udomljenja, provjerava se podudara li se i taj uvjet
-5. samo ako zapis prođe sve uvjete, ostaje u tablici
+1. prvo se provjerava tražilica
+2. zatim se provjerava filter po vrsti
+3. zatim se provjerava filter po statusu udomljenja
+4. tek ako zapis prođe sve uvjete, ostaje u tablici
 
-<InfoBox type="warning" title="Važna didaktička napomena">
-Učenici često napišu jedan veliki uvjet u jednoj liniji. To tehnički može raditi, ali je vrlo teško za čitanje i održavanje. U ovoj lekciji je važnije da logika bude jasna nego da bude što kraća.
-</InfoBox>
+Ovo je čitljivije nego jedan golemi uvjet u jednoj liniji.
 
 ---
 
-## Korak 4 — Povezivanje filtera s MudTable komponentom
+## Korak 4 — Povezivanje filter funkcije s postojećom MudTable tablicom
 
-Kad imamo funkciju za filtriranje, možemo je povezati s postojećom tablicom.
+Sada postojeću tablicu treba nadograditi tako da koristi novu logiku.
 
 <CodePreviewSplit
-  title="MudTable s povezanim filterom i sortiranjem"
-  image="/images/aziledu/predavanje-7/previews/mudtable-filter-sort.webp"
-  imageAlt="Prikaz MudTable tablice s aktivnim pretraživanjem i sortiranjem"
-  imageCaption="Datoteka slike: mudtable-filter-sort.webp"
-  imageDescription="Prikaži tablicu Animals u kojoj korisnik vidi rezultate nakon upisa pojma za pretragu i može kliknuti na zaglavlja stupaca za sortiranje."
+  title="MudTable s filtriranjem i sortiranjem"
+  image="/images/aziledu/predavanje-7/mudtable-filter-sort.webp"
+  imageAlt="MudTable tablica Animals s filtriranjem i sortiranjem"
+  imageDescription="Prikaži tablicu Animals nakon dodavanja filter funkcije i zaglavlja koja omogućuju sortiranje."
   code={`<MudTable Items="animals"
           Filter="FilterAnimals"
           Hover="true"
-          Striped="true"
           Dense="true"
-          Bordered="true">
+          Bordered="true"
+          Striped="true">
     <HeaderContent>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Name)">
+            <MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Name)">
                 Ime
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Species)">
+            <MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Species)">
                 Vrsta
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Breed)">
+            <MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Breed)">
                 Pasmina
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Age)">
+            <MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Age)">
                 Dob
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Animal, object>(x => x.ArrivalDate)">
+            <MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.ArrivalDate)">
                 Dolazak
             </MudTableSortLabel>
         </MudTh>
@@ -283,21 +251,25 @@ Kad imamo funkciju za filtriranje, možemo je povezati s postojećom tablicom.
         <MudTd DataLabel="Ime">@context.Name</MudTd>
         <MudTd DataLabel="Vrsta">@context.Species</MudTd>
         <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
-        <MudTd DataLabel="Dob">@context.Age</MudTd>
-        <MudTd DataLabel="Dolazak">@context.ArrivalDate.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Dob">@(context.Age?.ToString() ?? "-")</MudTd>
+        <MudTd DataLabel="Dolazak">@(context.ArrivalDate?.ToString("dd.MM.yyyy") ?? "-")</MudTd>
         <MudTd DataLabel="Status">
             @if (context.IsAdopted)
             {
-                <MudChip Color="Color.Success" Variant="Variant.Filled">Udomljena</MudChip>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">Udomljena</MudChip>
             }
             else
             {
-                <MudChip Color="Color.Warning" Variant="Variant.Filled">U azilu</MudChip>
+                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled">U azilu</MudChip>
             }
         </MudTd>
         <MudTd DataLabel="Akcije">
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Uredi</MudButton>
-            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small">Obriši</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="@($"/animals/edit/{context.Id}")">
+                Uredi
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAnimal(context.Id))">
+                Obriši
+            </MudButton>
         </MudTd>
     </RowTemplate>
 </MudTable>`}
@@ -308,56 +280,53 @@ Kad imamo funkciju za filtriranje, možemo je povezati s postojećom tablicom.
 
 Najvažnije nove stvari su:
 
-- <code>Filter="FilterAnimals"</code> povezuje našu metodu s tablicom
-- <code>MudTableSortLabel</code> omogućuje sortiranje po odabranim stupcima
-- korisnik sada može i pretraživati i sortirati istu tablicu
-
-### Što nije automatsko?
-
-Iako MudTable podržava filtriranje i sortiranje, ona **ne zna sama**:
-
-- po kojim poljima želiš pretraživati
-- koji su poslovno važni filteri
-- treba li opis uključiti u pretragu
-- kako prikazati status udomljenja
-
-To sve i dalje definira programer.
+- <code>Filter="FilterAnimals"</code> povezuje našu logiku s tablicom
+- <code>MudTableSortLabel</code> omogućuje sortiranje po stupcima
+- nullable polja poput <code>Age</code> i <code>ArrivalDate</code> prikazujemo sigurno, bez rušenja stranice
+- <code>MudChip</code> koristi <code>T="string"</code> da Razor jasno zna koji tip komponenta obrađuje
 
 ---
 
-## Korak 5 — Učitavanje podataka iz baze
+## Korak 5 — Dohvat podataka ostaje isti kao u prethodnoj lekciji
 
-Ako smo u prethodnim lekcijama već prebacili listu životinja na bazu, tada se ovdje samo naslanjamo na postojeći dohvat podataka.
+Ovdje ne uvodimo novi način komunikacije. Stranica i dalje dohvaća podatke preko API-ja, isto kao u Lekciji 5.
 
-Primjer:
+~~~razor
+@page "/animals"
+@using System.Net.Http.Json
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+~~~
 
-```csharp
-private List<Animal> animals = new();
-
+~~~csharp
 protected override async Task OnInitializedAsync()
 {
-    animals = await AnimalService.GetAllAsync();
+    var result = await Http.GetFromJsonAsync<List<AnimalDto>>("api/animals");
+    animals = result ?? new List<AnimalDto>();
 }
-```
+~~~
 
-Ako servis još nije uveden, ista logika može privremeno stajati i direktno u stranici, ali cilj je da projekt ostane uredan i da rad s bazom bude izdvojen iz UI sloja.
+### Što se ovdje događa?
 
-<InfoBox type="info" title="Važno za razumijevanje">
-Pretraga i filter u ovoj lekciji rade nad listom koja je već učitana u memoriju. To je dobar i razumljiv početni korak. Kasnije, kod većih količina podataka, dio te logike može se seliti prema bazi i upitima nad bazom.
-</InfoBox>
+- stranica šalje HTTP GET zahtjev na <code>api/animals</code>
+- API kontroler vraća listu <code>AnimalDto</code> objekata
+- rezultat spremamo u listu <code>animals</code>
+- upravo ta lista postaje izvor podataka za tablicu, pretragu i filtriranje
+
+To je važno: **ne filtriramo bazu direktno iz App sloja**, nego radimo nad listom koju smo već dohvatili preko API-ja.
 
 ---
 
-## Korak 6 — Dodavanje reset gumba
+## Korak 6 — Gumb za vraćanje na početno stanje
 
-Kad korisnik uključi više filtera, korisno je imati gumb koji vraća početno stanje.
+Kad korisnik uključi više filtera, dobro je ponuditi jasan povratak na početni prikaz.
 
 <CodePreviewSplit
-  title="Resetiranje pretrage i filtera"
-  image="/images/aziledu/predavanje-7/previews/reset-filters-button.webp"
-  imageAlt="Gumb za resetiranje svih filtera iznad tablice"
-  imageCaption="Datoteka slike: reset-filters-button.webp"
-  imageDescription="Prikaži iznad tablice gumb Očisti filtere koji vraća tražilicu i odabire na početno stanje."
+  title="Resetiranje tražilice i filtera"
+  image="/images/aziledu/predavanje-7/reset-filters-button.webp"
+  imageAlt="Gumb Očisti filtere iznad tablice"
+  imageDescription="Prikaži iznad tablice gumb koji briše tražilicu i vraća sve filtere na početno stanje."
   code={`<MudButton Variant="Variant.Outlined"
            Color="Color.Secondary"
            StartIcon="@Icons.Material.Filled.Refresh"
@@ -378,37 +347,60 @@ Kad korisnik uključi više filtera, korisno je imati gumb koji vraća početno 
 
 ### Zašto je ovo važno?
 
-Bez resetiranja korisnik ponekad ne zna zašto mu tablica više "ne pokazuje ništa". Često je razlog to što je ostao uključen neki stari filter. Dobar UI ne stavlja sav teret razmišljanja na korisnika.
+Bez ovoga tablica može djelovati zbunjujuće. Ako su filteri ostali uključeni, korisnik često ima osjećaj da nešto „ne radi“, a pravi uzrok je samo stari kriterij filtriranja.
 
 ---
 
-## Korak 7 — Prazno stanje tablice
+## Korak 7 — Poruka kad nema rezultata
 
-Dobro je predvidjeti i situaciju kada pretraga ili filter ne vrate nijedan rezultat.
+Kad nijedan zapis ne zadovoljava uvjete, tablica ne smije ostati nijema. Treba jasno reći što se događa.
 
-Primjer:
-
-```razor
+~~~razor
 <NoRecordsContent>
     <MudText Typo="Typo.body1" Class="pa-4">
         Nema rezultata za zadane kriterije pretrage i filtera.
     </MudText>
 </NoRecordsContent>
-```
+~~~
 
-### Zašto to ne smijemo preskočiti?
-
-Ako ovo ne dodamo, učenicima i korisnicima tablica može izgledati kao da je "pokvarena". Puno je jasnije kada aplikacija izričito kaže da trenutno nema odgovarajućih rezultata.
+Ovaj dio pomaže i tijekom razvoja i u stvarnoj uporabi aplikacije.
 
 ---
 
-## Korak 8 — Primjer cjelovitije stranice
+## Korak 8 — Brisanje zapisa iz iste tablice
 
-Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, filtere, reset i tablicu.
+Pošto je Lekcija 7 nastavak Lekcije 6, gumb za brisanje može ostati na istoj stranici. Zato treba zadržati i metodu za DELETE zahtjev.
 
-```razor
+~~~csharp
+private async Task DeleteAnimal(int id)
+{
+    var response = await Http.DeleteAsync($"api/animals/{id}");
+
+    if (response.IsSuccessStatusCode)
+    {
+        animals = animals.Where(a => a.Id != id).ToList();
+    }
+}
+~~~
+
+### Zašto je ovo dobro rješenje?
+
+- šalje se DELETE zahtjev prema API-ju
+- ako API potvrdi uspjeh, odmah uklanjamo zapis iz liste u memoriji
+- zato nije potrebno ponovno učitavati cijelu stranicu da bi tablica bila ažurna
+
+---
+
+## Korak 9 — Cjelovita verzija stranice Animals.razor
+
+Ispod je cjelovit primjer koji spaja sve što smo nadograđivali korak po korak.
+
+~~~razor
 @page "/animals"
-@inject IAnimalService AnimalService
+@using System.Net.Http.Json
+@using AzilEdu.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
 
 <PageTitle>Životinje</PageTitle>
 
@@ -427,7 +419,11 @@ Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, f
         </MudItem>
 
         <MudItem xs="12" md="3">
-            <MudSelect T="string" Label="Vrsta" @bind-Value="selectedSpecies" Clearable="true" Variant="Variant.Outlined">
+            <MudSelect T="string"
+                       Label="Vrsta"
+                       @bind-Value="selectedSpecies"
+                       Variant="Variant.Outlined"
+                       Clearable="true">
                 <MudSelectItem Value="Pas">Pas</MudSelectItem>
                 <MudSelectItem Value="Mačka">Mačka</MudSelectItem>
                 <MudSelectItem Value="Ptica">Ptica</MudSelectItem>
@@ -436,18 +432,22 @@ Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, f
         </MudItem>
 
         <MudItem xs="12" md="3">
-            <MudSelect T="bool?" Label="Status udomljenja" @bind-Value="adoptedFilter" Clearable="true" Variant="Variant.Outlined">
+            <MudSelect T="bool?"
+                       Label="Status udomljenja"
+                       @bind-Value="adoptedFilter"
+                       Variant="Variant.Outlined"
+                       Clearable="true">
                 <MudSelectItem Value="@(true)">Udomljene</MudSelectItem>
                 <MudSelectItem Value="@(false)">Nisu udomljene</MudSelectItem>
             </MudSelect>
         </MudItem>
 
-        <MudItem xs="12" md="2" Class="d-flex align-center">
+        <MudItem xs="12" md="3" Class="mt-3">
             <MudButton Variant="Variant.Outlined"
                        Color="Color.Secondary"
                        StartIcon="@Icons.Material.Filled.Refresh"
                        OnClick="ResetFilters">
-                Očisti
+                Očisti filtere
             </MudButton>
         </MudItem>
     </MudGrid>
@@ -460,48 +460,58 @@ Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, f
           Bordered="true"
           Striped="true">
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Name)">Ime</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Species)">Vrsta</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Breed)">Pasmina</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Animal, object>(x => x.Age)">Dob</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Animal, object>(x => x.ArrivalDate)">Dolazak</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Name)">Ime</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Species)">Vrsta</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Breed)">Pasmina</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.Age)">Dob</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AnimalDto, object?>(x => x.ArrivalDate)">Dolazak</MudTableSortLabel></MudTh>
         <MudTh>Status</MudTh>
+        <MudTh>Akcije</MudTh>
     </HeaderContent>
 
     <RowTemplate>
         <MudTd DataLabel="Ime">@context.Name</MudTd>
         <MudTd DataLabel="Vrsta">@context.Species</MudTd>
         <MudTd DataLabel="Pasmina">@context.Breed</MudTd>
-        <MudTd DataLabel="Dob">@context.Age</MudTd>
-        <MudTd DataLabel="Dolazak">@context.ArrivalDate.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Dob">@(context.Age?.ToString() ?? "-")</MudTd>
+        <MudTd DataLabel="Dolazak">@(context.ArrivalDate?.ToString("dd.MM.yyyy") ?? "-")</MudTd>
         <MudTd DataLabel="Status">
             @if (context.IsAdopted)
             {
-                <MudChip Color="Color.Success">Udomljena</MudChip>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">Udomljena</MudChip>
             }
             else
             {
-                <MudChip Color="Color.Warning">U azilu</MudChip>
+                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled">U azilu</MudChip>
             }
+        </MudTd>
+        <MudTd DataLabel="Akcije">
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="@($"/animals/edit/{context.Id}")">
+                Uredi
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAnimal(context.Id))">
+                Obriši
+            </MudButton>
         </MudTd>
     </RowTemplate>
 
     <NoRecordsContent>
         <MudText Typo="Typo.body1" Class="pa-4">
-            Nema rezultata za zadane kriterije.
+            Nema rezultata za zadane kriterije pretrage i filtera.
         </MudText>
     </NoRecordsContent>
 </MudTable>
 
 @code {
-    private List<Animal> animals = new();
+    private List<AnimalDto> animals = new();
     private string searchString = string.Empty;
     private string? selectedSpecies;
-    private bool? adoptedFilter = null;
+    private bool? adoptedFilter;
 
     protected override async Task OnInitializedAsync()
     {
-        animals = await AnimalService.GetAllAsync();
+        var result = await Http.GetFromJsonAsync<List<AnimalDto>>("api/animals");
+        animals = result ?? new List<AnimalDto>();
     }
 
     private void ResetFilters()
@@ -511,7 +521,7 @@ Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, f
         adoptedFilter = null;
     }
 
-    private bool FilterAnimals(Animal animal)
+    private bool FilterAnimals(AnimalDto animal)
     {
         if (!string.IsNullOrWhiteSpace(searchString))
         {
@@ -526,113 +536,74 @@ Ispod je pojednostavljen, ali cjelovit primjer stranice koji spaja tražilicu, f
                 return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(selectedSpecies) &&
-            !string.Equals(animal.Species, selectedSpecies, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(selectedSpecies))
         {
-            return false;
+            if (!string.Equals(animal.Species, selectedSpecies, StringComparison.OrdinalIgnoreCase))
+                return false;
         }
 
-        if (adoptedFilter.HasValue && animal.IsAdopted != adoptedFilter.Value)
+        if (adoptedFilter.HasValue)
         {
-            return false;
+            if (animal.IsAdopted != adoptedFilter.Value)
+                return false;
         }
 
         return true;
     }
-}```
 
-<InfoBox type="warning" title="Ne prepisivati slijepo">
-Ovaj primjer je namjerno cjelovit da učenici vide jednu zaokruženu cjelinu. Ipak, cilj nije samo prepisati kod, nego razumjeti zašto svaki dio postoji i što radi.
-</InfoBox>
+    private async Task DeleteAnimal(int id)
+    {
+        var response = await Http.DeleteAsync($"api/animals/{id}");
 
----
-
-## Gdje spremiti slike za ovu lekciju?
-
-### Preview slike za Mud komponente
-
-Sve preview slike za blokove kod + preview stavi ovdje:
-
-```text
-public/images/aziledu/predavanje-7/previews/
-```
-
-Predložena imena slika:
-
-- <code>animal-list-search-filters.webp</code>
-- <code>mudtable-filter-sort.webp</code>
-- <code>reset-filters-button.webp</code>
-
-### Ostale slike za lekciju
-
-Ako želiš dodatne screenshotove cijele stranice, spremi ih u:
-
-```text
-public/images/aziledu/predavanje-7/
-```
-
-Predložena imena:
-
-- <code>animals-page-full-view.webp</code>
-- <code>animals-empty-state.webp</code>
-- <code>animals-sorted-by-name.webp</code>
+        if (response.IsSuccessStatusCode)
+        {
+            animals = animals.Where(a => a.Id != id).ToList();
+        }
+    }
+}
+~~~
 
 ---
-
-## Najčešće greške učenika
-
-<StepGrid>
-  <StepCard title="1. Filter funkcija nije povezana s tablicom">
-    Učenik napiše metodu <code>FilterAnimals</code>, ali je ne doda u <code>Filter</code> atribut tablice.
-  </StepCard>
-  <StepCard title="2. Pretraga nije Immediate">
-    Učenik očekuje da se rezultati mijenjaju odmah, ali bez <code>Immediate="true"</code> ponašanje nije onakvo kakvo očekuje.
-  </StepCard>
-  <StepCard title="3. Pogrešni podaci u filteru vrste">
-    Ako u bazi piše <code>pas</code>, a u filtru traži <code>Pas</code>, bez pravilne usporedbe može doći do problema.
-  </StepCard>
-  <StepCard title="4. Prazna tablica bez poruke">
-    Ako nema <code>NoRecordsContent</code>, korisnik ne zna je li problem u filteru ili u aplikaciji.
-  </StepCard>
-</StepGrid>
-
----
-
-## Vježba na satu
-
-1. Dodaj tekstualnu tražilicu koja pretražuje barem ime i pasminu životinje.  
-2. Dodaj filter po vrsti životinje.  
-3. Dodaj filter po statusu udomljenja.  
-4. Omogući sortiranje po imenu i datumu dolaska.  
-5. Dodaj gumb za resetiranje svih filtera.  
-6. Prikaži poruku ako pretraga ne vrati nijedan rezultat.
 
 ## Domaći zadatak
 
-Nadogradi postojeću stranicu tako da korisnik može:
+Nastavi nadogradnju modula <code>HousingUnits</code> koji se provlači iz prethodnih lekcija i primijeni isti obrazac kao na stranici <code>Animals</code>.
 
-- pretraživati po najmanje tri polja
-- filtrirati po vrsti životinje
-- filtrirati po statusu udomljenja
-- sortirati po najmanje tri stupca
-- vidjeti poruku kada nema rezultata
+### Potrebno je napraviti:
 
-Dodatni izazov:
+1. Stranicu s popisom smještajnih jedinica nadogradi tako da koristi:
+   - tekstualnu pretragu
+   - barem jedan padajući filter
+   - sortiranje po barem tri stupca
+2. Dodaj gumb za resetiranje svih filtera.
+3. Dodaj poruku koja se prikazuje kad nema rezultata.
+4. Prikaži prazne ili nullable vrijednosti sigurno, bez rušenja stranice.
+5. Ako postoji gumb za brisanje, nakon uspješnog DELETE zahtjeva odmah ažuriraj listu bez ručnog refreshanja stranice.
 
-- dodaj filter koji prikazuje samo životinje mlađe od određene dobi
-- ili dodaj sortiranje po statusu udomljenja
+### Obavezni kriteriji završnog rada
+
+Na kraju domaćeg rješenje mora:
+
+- dohvaćati podatke preko HTTP + DTO pristupa
+- imati preglednu traku za upravljanje tablicom iznad popisa
+- imati jasno odvojenu logiku za pretragu i filtriranje
+- imati barem jednu sortirajuću tablicu s više stupaca
+- koristiti isti stil i pristup kao stranica <code>Animals</code> iz ove lekcije
 
 ---
 
-## Sažetak lekcije
+## Kratak sažetak
 
-<LessonSummary
-  title="Što smo napravili u 7. lekciji?"
-  points={[
-    'postojeći popis životinja nadogradili smo pretragom, filterima i sortiranjem',
-    'učenici su naučili razliku između search, filter i sort logike',
-    'MudTable smo povezali s vlastitom filter funkcijom umjesto da očekujemo da sve radi sama od sebe',
-    'dodali smo kontrolirani i pregledan način rada s većim brojem zapisa',
-    'pripremili smo teren za sljedeće nadogradnje poput detalja životinje, naprednijeg filtriranja ili rada s više povezanih tablica'
-  ]}
-/>
+U ovoj lekciji nismo mijenjali način komunikacije s bazom, nego smo nadogradili korisnički prikaz podataka koje već dohvaćamo iz API-ja.
+
+Tijek rada sada izgleda ovako:
+
+1. Stranica <code>Animals.razor</code> preko <code>HttpClient</code>-a šalje GET zahtjev na <code>api/animals</code>.
+2. API kontroler vraća listu <code>AnimalDto</code> objekata.
+3. Ta lista se sprema u <code>animals</code> i prikazuje u <code>MudTable</code> tablici.
+4. Korisnik iznad tablice upisuje pojam za pretragu ili odabire filtere.
+5. <code>FilterAnimals</code> za svaki zapis provjerava treba li ostati vidljiv.
+6. <code>MudTableSortLabel</code> omogućuje dodatno sortiranje bez mijenjanja samih podataka.
+7. Ako korisnik obriše zapis, šalje se DELETE zahtjev i lista se odmah ažurira u memoriji.
+
+To znači da je ova lekcija prirodan nastavak Lekcije 6: tamo smo izgradili CRUD, a ovdje smo postojeći popis pretvorili u stvarno upotrebljiv radni pregled.

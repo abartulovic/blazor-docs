@@ -2,86 +2,86 @@ export default {
   index: "Početna",
 
   Lekcija01: {
-    title: "1. Uvod u Blazor",
+    title: "1. Postavljanje AzilEdu rješenja",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija02: {
     title: "2. Osnovne komponente",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija03: {
-    title: "3. Routing i navigacija",
+    title: "3. Prikaz životinja",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija04: {
-    title: "4. Layout i organizacija stranica",
+    title: "4. Baza podataka, HTTP i migracije",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija05: {
-    title: "5. CRUD i baza podataka",
+    title: "5. HTTP + DTO dohvat podataka",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija06: {
-    title: "6. Rad s formama",
+    title: "6. CUD preko API-ja",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija07: {
     title: "7. Pretraga, filtriranje i sortiranje",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija08: {
     title: "8. Validacija unosa",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija09: {
     title: "9. Rad s povezanim podacima",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija10: {
     title: "10. Napredniji prikaz podataka",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija11: {
     title: "11. Medicinske bilješke i evidencija tretmana",
     theme: {
-      toc: false
-    }
+      toc: false,
+    },
   },
 
   Lekcija12: {
     title: "12. Modul udomljenja",
     theme: {
-      toc: false
-    }
-  }
-}
+      toc: false,
+    },
+  },
+};

@@ -45,7 +45,10 @@ Prvo smo razumjeli kako izgleda modul i kako se podaci prikazuju. Tek nakon toga
   <StepCard title="4. Registriraš bazu" icon="link">
     U `Program.cs` povezujemo `DbContext` i connection string.
   </StepCard>
-  <StepCard title="5. Pokrećeš migracije" icon="wand">
+  <StepCard title="5. Uključuješ Swagger" icon="api">
+    Pripremaš API projekt za kasnije testiranje endpointa kroz preglednik.
+  </StepCard>
+  <StepCard title="6. Pokrećeš migracije" icon="wand">
     Generiramo prvu migraciju i stvaramo stvarnu SQLite bazu.
   </StepCard>
 </StepGrid>
@@ -100,8 +103,8 @@ public class Animal
     public string Species { get; set; } = string.Empty;
     public string Breed { get; set; } = string.Empty;
     public string Gender { get; set; } = string.Empty;
-    public int Age { get; set; }
-    public DateTime ArrivalDate { get; set; }
+    public int? Age { get; set; }
+    public DateTime? ArrivalDate { get; set; }
     public bool IsAdopted { get; set; }
     public string ImageUrl { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -114,12 +117,16 @@ Svako javno svojstvo iz ove klase EF Core može pretvoriti u stupac tablice. To 
 
 - `Id` postaje primarni ključ
 - `Name`, `Species`, `Breed` i ostala tekstualna svojstva postaju stupci za tekst
-- `Age` postaje numerički stupac
-- `ArrivalDate` postaje datum
+- `Age` postaje numerički stupac i može ostati prazan ako dob nije poznata
+- `ArrivalDate` postaje datum i može ostati prazan ako točan datum dolaska još nije zabilježen
 - `IsAdopted` postaje logička vrijednost
 
 <InfoBox type="info" title="Najvažnija mentalna poveznica">
 Klasa `Animal` još nije baza. To je model u aplikaciji. Tek kada taj model povežeš s `DbContext` klasom i pokreneš migraciju, EF Core može iz njega izvesti strukturu tablice u bazi.
+</InfoBox>
+
+<InfoBox type="info" title="Poveznica sa sljedećom lekcijom">
+U ovoj lekciji radimo s <strong>entity modelom `Animal`</strong> i povezujemo ga s bazom preko `DbContext` klase. U sljedećoj lekciji nećemo frontend spajati direktno na bazu, nego uvodimo <strong>DTO modele, API kontroler i HTTP dohvat podataka</strong>. Zato je važno da `Animal` već sada bude u konačnoj, usklađenoj verziji koju ćemo dalje koristiti.
 </InfoBox>
 
 ## 5. Dodavanje EF Core paketa u `AzilEdu.Api`
@@ -310,6 +317,265 @@ Opis slike: otvorena datoteka `appsettings.json` i označen dio `ConnectionStrin
 Za ovu lekciju najvažnije je razumjeti da je SQLite baza u ovom slučaju <strong>jedna `.db` datoteka</strong>. Ona se može pojaviti u projektu ovisno o načinu pokretanja aplikacije i konfiguraciji projekta.
 </InfoBox>
 
+
+## 8. Swagger: instalacija, uključivanje i pokretanje
+
+Prije nego u sljedećim lekcijama krenemo na kontrolere i HTTP pozive, korisno je odmah pripremiti Swagger. Swagger služi za testiranje API endpointa kroz preglednik. To znači da kasnije možeš provjeriti radi li `GET`, `POST`, `PUT` ili `DELETE` i prije nego što ih pozoveš iz `AzilEdu.App` projekta.
+
+<InfoBox type="info" title="Zašto Swagger uvodimo već sada?">
+Iako u ovoj lekciji još ne radimo kontrolere, Swagger je dobar alat za backend dio projekta. Kasnije ćeš njime lakše provjeravati vraća li API podatke ispravno i bez pogrešaka.
+</InfoBox>
+
+### 8.1 Provjeri je li Swagger već uključen
+
+U novijim ASP.NET Core Web API projektima Swagger je često već postavljen automatski. Zato prvo otvori datoteku:
+
+```text
+AzilEdu.Api/Program.cs
+```
+
+Ako u `Program.cs` već vidiš nešto slično ovome, Swagger je već uključen:
+
+```csharp
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+```
+
+### 8.2 Ako Swagger nije uključen, dodaj potrebni paket
+
+U **Package Manager Console** provjeri da je **Default project** postavljen na `AzilEdu.Api`, pa zatim pokreni:
+
+```powershell
+Install-Package Swashbuckle.AspNetCore
+```
+
+<CodePreviewSplit
+  title='Swagger paket u `AzilEdu.Api`'
+  description='Na lijevoj strani vidimo paket koji treba biti instaliran, a na desnoj preview slike u Visual Studiju.'
+  language="text"
+  fileName="swagger-package-installed.webp"
+  code={`AzilEdu.Api
+└── Dependencies
+    └── Packages
+        └── Swashbuckle.AspNetCore`}
+/>
+
+Opis slike: otvoren `AzilEdu.Api` projekt i prikaz `Dependencies/Packages` s instaliranim paketom `Swashbuckle.AspNetCore`.
+
+### 8.3 Što dodajemo u `Program.cs`
+
+Ako Swagger nije već prisutan, u `Program.cs` dodaj ove linije u dio gdje registriraš servise:
+
+```csharp
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+```
+
+Kasnije, nakon `var app = builder.Build();`, dodaj i middleware dio:
+
+```csharp
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+```
+
+### 8.4 Primjer `Program.cs` dijela sa Swaggerom
+
+Ovdje ne mijenjamo cijeli `Program.cs`, nego samo pokazujemo gdje Swagger pripada u odnosu na ostale dijelove konfiguracije:
+
+```csharp
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<AzilEduDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.MapControllers();
+app.Run();
+```
+
+<CodePreviewSplit
+  title='Mjesto gdje uključuješ Swagger u `Program.cs`'
+  description='Na lijevoj strani vidimo najvažnije linije vezane uz Swagger, a na desnoj preview kako taj dio izgleda u editoru.'
+  language="csharp"
+  fileName="programcs-swagger-lines.webp"
+  code={`builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}`}
+/>
+
+Opis slike: otvorena datoteka `Program.cs` u projektu `AzilEdu.Api` i označene linije za `AddSwaggerGen`, `UseSwagger` i `UseSwaggerUI`.
+
+### 8.4a Što je API pipeline i čemu služi
+
+Kada se API aplikacija pokrene, svaki HTTP zahtjev ne ide odmah direktno u kontroler. Prvo prolazi kroz **API pipeline**.
+
+API pipeline možeš zamisliti kao niz koraka kroz koje zahtjev prolazi prije nego što dođe do odgovarajuće akcije u kontroleru i prije nego što odgovor ode natrag prema pregledniku ili Blazor aplikaciji.
+
+U `Program.cs` upravo tim redoslijedom slažemo ponašanje aplikacije.
+
+Najvažnije je razumjeti da redoslijed tih linija nije slučajan. Svaka od njih uključuje dio obrade zahtjeva.
+
+```csharp
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+```
+
+Što ovdje radi svaki dio:
+
+- `app.UseSwagger()` uključuje generiranje Swagger JSON opisa API-ja
+- `app.UseSwaggerUI()` uključuje web sučelje za pregled i testiranje endpointa
+- `app.UseHttpsRedirection()` preusmjerava HTTP zahtjeve na HTTPS verziju
+- `app.UseAuthorization()` priprema provjeru prava pristupa ako ih kasnije uvedemo
+- `app.MapControllers()` govori aplikaciji da potraži rute definirane u kontrolerima i spoji ih na odgovarajuće URL adrese
+
+<InfoBox type="info" title="Najkraće objašnjenje pipeline-a">
+Pipeline je put kojim HTTP zahtjev prolazi kroz aplikaciju. Na tom putu aplikacija odlučuje treba li uključiti Swagger, preusmjeriti zahtjev na HTTPS, provjeriti pravila pristupa i na kraju pozvati odgovarajući kontroler.
+</InfoBox>
+
+Zato u lekcijama često spominjemo da nešto "ide kroz pipeline". To ne znači novu vrstu klase, nego redoslijed obrade HTTP zahtjeva u ASP.NET Core aplikaciji.
+
+### 8.5 Dopuna `launchSettings.json` za automatsko otvaranje Swaggera
+
+Da bi se Swagger uredno otvorio pri pokretanju API projekta, u nekim slučajevima treba nadopuniti datoteku:
+
+```text
+AzilEdu.Api/Properties/launchSettings.json
+```
+
+U toj datoteci obrati pažnju na dva važna dijela:
+
+- `launchUrl: "swagger"` govori aplikaciji da nakon pokretanja otvori Swagger stranicu
+- `applicationUrl` određuje na kojim URL-ovima i portovima API radi
+
+Ako Swagger ne otvaraš automatski ili želiš uskladiti portove, dopuni ili provjeri `launchSettings.json` ovako:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5195",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7220;http://localhost:5195",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
+<CodePreviewSplit
+  title='`launchSettings.json` s uključenim Swagger pokretanjem'
+  description='Na lijevoj strani vidimo sadržaj konfiguracije koji omogućuje pokretanje API-ja na definiranim portovima i otvaranje Swagger stranice, a na desnoj preview slike iz Visual Studija.'
+  language="json"
+  fileName="launchsettings-swagger.webp"
+  code={`{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5195"
+    },
+    "https": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7220;http://localhost:5195"
+    }
+  }
+}`}
+/>
+
+Opis slike: otvorena datoteka `launchSettings.json` u projektu `AzilEdu.Api` i označeni dijelovi `launchUrl: "swagger"` te `applicationUrl` s HTTP i HTTPS portovima.
+
+### 8.6 Kako pokrenuti Swagger
+
+Pokreni projekt **`AzilEdu.Api`** kao startup projekt. Nakon pokretanja aplikacije preglednik se često sam otvori. Ako se Swagger stranica ne otvori automatski, provjeri koji se URL koristi za API projekt i na kraj dodaj:
+
+```text
+/swagger
+```
+
+Primjer:
+
+```text
+https://localhost:7220/swagger
+```
+
+### 8.7 Gdje provjeravaš port API aplikacije
+
+Port API aplikacije možeš pronaći na nekoliko mjesta:
+
+- u adresnoj traci preglednika nakon pokretanja projekta
+- u `Properties/launchSettings.json`
+- u Visual Studio izlazu kada se projekt pokrene
+
+Ako je u tvom projektu API port `7220`, Swagger ćeš otvoriti na:
+
+```text
+https://localhost:7220/swagger
+```
+
+<CodePreviewSplit
+  title='Primjer Swagger URL-a'
+  description='Na lijevoj strani vidimo URL koji upisuješ u preglednik, a na desnoj preview slike otvorenog Swagger sučelja.'
+  language="text"
+  fileName="swagger-url-preview.webp"
+  code={`https://localhost:7220/swagger`}
+/>
+
+Opis slike: otvoren preglednik sa Swagger sučeljem na adresi `https://localhost:7220/swagger`.
+
+<InfoBox type="success" title="Što time dobivaš?">
+Swagger ti omogućuje da kasnije testiraš kontrolere i API rute bez potrebe da odmah sve spajaš s Blazor sučeljem. To je vrlo koristan međukorak dok razvijaš backend.
+</InfoBox>
+
 ## 9. Što je migracija
 
 Migracija je zapis promjene strukture baze na temelju promjena koje si napravio u modelima i `DbContext` klasi.
@@ -415,7 +681,7 @@ Opis slike: prikaz datoteke `AzilEdu.db` u projektu, output folderu ili File Exp
 
 ## 12. Domaći rad: samostalno dodaj tablicu `HousingUnits`
 
-Za domaći ne ponavljamo opet `Animals`, nego isti obrazac samostalno prenosimo na novu tablicu. Odabir je ovdje namjerno strogo zadan kako bi zadatak bio jasan.
+Za domaći ne ponavljamo opet `Animals`, nego isti obrazac samostalno prenosimo na novu tablicu. Odabir je ovdje namjerno strogo zadan kako bi zadatak bio jasan, a ono što ovdje napraviš nastavljamo koristiti i u sljedećim lekcijama kada uvedemo API dohvat i CUD operacije.
 
 ### 12.1 Napravi model `HousingUnit`
 
@@ -490,6 +756,7 @@ Nije dovoljno samo kopirati naredbe. Mora biti jasno da razumiješ što je dodan
 
 ## 13. Najvažnije za zapamtiti
 
+- Swagger pripremamo u `AzilEdu.Api` projektu kako bismo kasnije mogli testirati API endpointe kroz preglednik.
 - model u aplikaciji i tablica u bazi nisu ista stvar, ali su povezani
 - `DbContext` je most između aplikacije i baze
 - `DbSet<Animal>` i `DbSet<HousingUnit>` govore EF Coreu koje tablice želimo imati
@@ -517,6 +784,6 @@ Nije dovoljno samo kopirati naredbe. Mora biti jasno da razumiješ što je dodan
     'Koristiš postojeći model Animal i povezuješ ga s EF Coreom preko klase AzilEduDbContext.',
     'Dodaješ SQLite connection string i registriraš bazu u Program.cs datoteci.',
     'Pokrećeš prvu migraciju i zatim je primjenjuješ na stvarnu bazu.',
-    'Na satu prolazimo cijeli tok za Animals, a u domaćem isti princip prenosimo na novu tablicu HousingUnits.'
+    'Na satu prolazimo cijeli tok za Animals, a u domaćem isti princip prenosimo na novu tablicu HousingUnits. U sljedećoj lekciji na istim tim podacima uvodimo DTO modele, API kontroler i HTTP dohvat.'
   ]}
 />
