@@ -73,8 +73,7 @@ Zato sada status izdvajamo u zasebnu tablicu.
   title="Dijagram stare verzije baze iz prethodne lekcije"
   image="/images/aziledu/predavanje-8/previews/db-before-animalstatus.webp"
   imageAlt="Stara baza bez tablice AnimalStatuses"
-  imageCaption="Datoteka slike: db-before-animalstatus.webp"
-  imageDescription="Prikaži dijagram stare verzije baze u kojoj je status još uvijek dio tablice Animals i ne postoji zasebna tablica AnimalStatuses."
+  imageCaption="Opis slike: dijagram stare verzije baze u kojoj je status još uvijek dio tablice Animals. Predloženo ime datoteke: db-before-animalstatus.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="text"
   code={`Animals
 - Id
@@ -97,10 +96,10 @@ Ovdje je redoslijed izuzetno važan.
 
 Ne radi se ovako:
 
-1. malo promijeniš model
-2. odmah pokreneš migraciju
-3. kasnije popravljaš kontrolere
-4. još kasnije ispravljaš UI
+1. malo promijenimo model
+2. odmah pokrenemo migraciju
+3. kasnije popravljamo kontrolere
+4. još kasnije ispravljamo UI
 
 To gotovo uvijek završi build greškama i neuspjelom migracijom.
 
@@ -202,27 +201,6 @@ Primjer:
 `ICollection<Animal>` predstavlja kolekciju svih životinja koje imaju taj status.  
 `new List<Animal>()` odmah inicijalizira praznu listu kako svojstvo ne bi bilo `null`.
 
-### Zašto koristimo `ICollection<Animal>`, a ne `List<Animal>`
-
-`List<Animal>` je konkretna implementacija liste.  
-`ICollection<Animal>` je općenitiji ugovor koji govori: ovdje postoji kolekcija povezanih zapisa.
-
-Kod EF Core modela je bolje koristiti općenitiji tip jer:
-
-- model ne vezuješ uz jednu konkretnu implementaciju kolekcije
-- Entity Framework lakše radi sa svojim internim mehanizmima za praćenje relacija
-- ostavljaš si više fleksibilnosti ako kasnije promijeniš način rada s kolekcijama
-
-S druge strane, s desne strane i dalje inicijaliziramo konkretan objekt:
-
-~~~csharp
-new List<Animal>()
-~~~
-
-To znači:
-- izvana govorimo da svojstvo predstavlja kolekciju
-- iznutra ga stvarno punimo listom
-
 To svojstvo se naziva **navigacijsko svojstvo** i Entity Framework ga koristi kako bi razumio odnos:
 
 - jedan `AnimalStatus`
@@ -287,43 +265,7 @@ public DbSet<Animal> Animals => Set<Animal>();
 public DbSet<AnimalStatus> AnimalStatuses => Set<AnimalStatus>();
 ~~~
 
-Zatim dodaj ili napravi metodu `OnModelCreating`.
-
-### Važna napomena
-
-Po defaultu `base.OnModelCreating(modelBuilder);` nije unaprijed napisan u tvojoj klasi `AzilEduDbContext`.  
-Tu metodu moraš napraviti ručno.
-
-Primjer osnovne strukture:
-
-~~~csharp
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
-
-    modelBuilder.Entity<Animal>()
-        .HasOne(a => a.AnimalStatus)
-        .WithMany(s => s.Animals)
-        .HasForeignKey(a => a.AnimalStatusId)
-        .OnDelete(DeleteBehavior.Restrict);
-}
-~~~
-
-### Što znači `base.OnModelCreating(modelBuilder);`
-
-Ova linija poziva osnovnu verziju metode iz roditeljske klase `DbContext`.
-
-To znači:
-- prvo se izvršava zadana konfiguracija koju EF Core već zna napraviti sam
-- nakon toga dodaješ svoju dodatnu konfiguraciju relacija, seed podataka i ostalog
-
-Drugim riječima:
-- `base.OnModelCreating(modelBuilder);` ne radi tvoju relaciju umjesto tebe
-- ali osigurava da se zadrži standardno ponašanje osnovnog `DbContext` mehanizma
-
-Nakon toga ti ručno dodaješ sve što je specifično za ovaj projekt.
-
-Zatim u istoj metodi dodaj relaciju:
+Zatim u metodi `OnModelCreating` dodaj relaciju:
 
 ~~~csharp
 modelBuilder.Entity<Animal>()
@@ -397,24 +339,18 @@ modelBuilder.Entity<Animal>().HasData(
 ~~~
 
 <CodePreviewSplit
-  title="AzilEduDbContext nakon dodavanja relacije i seed podataka"
+  title="`AzilEduDbContext.cs` nakon dodavanja relacije i seed podataka"
   image="/images/aziledu/predavanje-8/previews/dbcontext-animalstatus.webp"
   imageAlt="Otvoren AzilEduDbContext.cs s DbSetom AnimalStatuses i seed podacima"
-  imageCaption="Datoteka slike: dbcontext-animalstatus.webp"
-  imageDescription="Prikaži datoteku AzilEduDbContext.cs s novim DbSetom AnimalStatuses, relacijom Animal -> AnimalStatus i seed podacima za statuse."
+  imageCaption="Opis slike: datoteka AzilEduDbContext.cs s novim DbSetom, relacijom Animal -> AnimalStatus i seed podacima. Predloženo ime datoteke: dbcontext-animalstatus.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="csharp"
   code={`public DbSet<AnimalStatus> AnimalStatuses => Set<AnimalStatus>();
 
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
-
-    modelBuilder.Entity<Animal>()
-        .HasOne(a => a.AnimalStatus)
-        .WithMany(s => s.Animals)
-        .HasForeignKey(a => a.AnimalStatusId)
-        .OnDelete(DeleteBehavior.Restrict);
-}`}
+modelBuilder.Entity<Animal>()
+    .HasOne(a => a.AnimalStatus)
+    .WithMany(s => s.Animals)
+    .HasForeignKey(a => a.AnimalStatusId)
+    .OnDelete(DeleteBehavior.Restrict);`}
 />
 
 ---
@@ -487,7 +423,9 @@ public class LookupDto
 
 Kontroler se mora prilagoditi novoj relaciji. Sada status više ne dolazi iz `IsAdopted`, nego iz povezane tablice `AnimalStatuses`.
 
-### Korak 6.1 – `[HttpGet]` za dohvat liste životinja
+### Datoteka: `AzilEdu.Api/Controllers/AnimalsController.cs`
+
+### Dohvat svih životinja
 
 ~~~csharp
 [HttpGet]
@@ -516,131 +454,13 @@ public async Task<ActionResult<List<AnimalDto>>> GetAnimals()
 }
 ~~~
 
-### Što znači `[HttpGet]`
+### Što je ovdje važno
 
-Atribut `[HttpGet]` govori ASP.NET Coreu da se ova metoda poziva kad stigne **HTTP GET zahtjev** na rutu kontrolera.
+- `Include(a => a.AnimalStatus)` učitava povezanu tablicu
+- `Status = a.AnimalStatus.Name` vraća naziv statusa za prikaz
+- `AnimalStatusId` ostaje dostupan za edit formu
 
-Ako je kontroler označen s:
-
-~~~csharp
-[Route("api/[controller]")]
-~~~
-
-i zove se `AnimalsController`, tada ova metoda odgovara na rutu:
-
-`/api/animals`
-
-### Gdje se spremaju životinje
-
-Životinje su spremljene u tablici baze podataka koju EF Core mapira kroz:
-
-~~~csharp
-_context.Animals
-~~~
-
-To znači:
-- `_context` predstavlja vezu prema bazi
-- `Animals` predstavlja tablicu `Animals`
-- `ToListAsync()` izvršava SQL upit i dohvaća podatke iz baze
-
-### Kako `Animals.razor` dohvaća te podatke
-
-Stranica `Animals.razor` ne ide direktno na bazu.  
-Ona šalje HTTP zahtjev prema API-ju, najčešće ovako:
-
-~~~csharp
-animals = await Http.GetFromJsonAsync<List<AnimalDto>>("api/animals") ?? new();
-~~~
-
-Dakle tok izgleda ovako:
-
-1. `Animals.razor` šalje GET zahtjev na `api/animals`
-2. taj zahtjev dolazi u `AnimalsController`
-3. metoda `GetAnimals()` dohvaća podatke iz baze preko `_context.Animals`
-4. kontroler vraća DTO listu
-5. `Animals.razor` prima JSON i pretvara ga u `List<AnimalDto>`
-
-### Kojeg je tipa metoda `public async Task<ActionResult<List<AnimalDto>>> GetAnimals()`
-
-Ova metoda je:
-
-- **asinkrona**, jer koristi `async` i `await`
-- vraća `Task<...>` jer rezultat stiže nakon završetka baze i mapiranja
-- unutar `ActionResult<List<AnimalDto>>` vraća HTTP odgovor koji u tijelu sadrži listu DTO objekata
-
-Drugim riječima:
-- metoda ne vraća direktno samo listu
-- nego vraća **HTTP rezultat**
-- taj rezultat u ovom slučaju sadrži `List<AnimalDto>`
-
-### Što točno vraća `return Ok(animals);`
-
-`Ok(animals)` vraća:
-- HTTP status **200 OK**
-- i u tijelu odgovora listu životinja u DTO obliku
-
-To je upravo ono što App sloj treba za prikaz na listi.
-
-### Što se još događa u ovoj metodi
-
-- `Include(a => a.AnimalStatus)` govori EF Coreu da uz životinju dohvati i povezani status
-- `Select(...)` ne vraća cijeli entitet prema App sloju, nego gradi `AnimalDto`
-- `Status = a.AnimalStatus.Name` priprema tekst koji će se odmah moći prikazati na listi
-
----
-
-### Korak 6.2 – `[HttpGet("{id}")]` za dohvat jedne životinje
-
-~~~csharp
-[HttpGet("{id}")]
-public async Task<ActionResult<AnimalDto>> GetAnimalById(int id)
-{
-    var animal = await _context.Animals
-        .Include(a => a.AnimalStatus)
-        .FirstOrDefaultAsync(a => a.Id == id);
-
-    if (animal is null)
-        return NotFound();
-
-    var dto = new AnimalDto
-    {
-        Id = animal.Id,
-        Name = animal.Name,
-        Species = animal.Species,
-        Breed = animal.Breed,
-        Gender = animal.Gender,
-        Age = animal.Age,
-        ArrivalDate = animal.ArrivalDate,
-        AnimalStatusId = animal.AnimalStatusId,
-        Status = animal.AnimalStatus != null ? animal.AnimalStatus.Name : string.Empty,
-        ImageUrl = animal.ImageUrl,
-        Description = animal.Description
-    };
-
-    return Ok(dto);
-}
-~~~
-
-### Što znači `[HttpGet("{id}")]`
-
-Ovaj atribut znači da metoda odgovara na GET zahtjev s parametrom u ruti.
-
-Ruta je:
-
-`/api/animals/5`
-
-Ako je `id = 5`, metoda pokušava pronaći upravo tu jednu životinju.
-
-### Što ova metoda vraća
-
-- ako zapis postoji → `200 OK` + jedan `AnimalDto`
-- ako zapis ne postoji → `404 NotFound`
-
-Ova metoda je potrebna za edit stranicu, jer `AnimalsEdit.razor` mora prvo dohvatiti postojeći zapis prije nego što se prikaže forma.
-
----
-
-### Korak 6.3 – `[HttpPost]` za unos nove životinje
+### Dodavanje nove životinje
 
 ~~~csharp
 [HttpPost]
@@ -685,112 +505,7 @@ public async Task<ActionResult<AnimalDto>> CreateAnimal(SaveAnimalDto dto)
 }
 ~~~
 
-### Što znači `[HttpPost]`
-
-Atribut `[HttpPost]` govori da se metoda poziva kad App pošalje **POST zahtjev** na:
-
-`/api/animals`
-
-POST se koristi kad želiš **stvoriti novi zapis**.
-
-### Što se događa u ovoj metodi
-
-1. API prima `SaveAnimalDto dto`
-2. iz DTO modela gradi novi entitet `Animal`
-3. `_context.Animals.Add(animal);` dodaje novi objekt u EF Core tracking
-4. `await _context.SaveChangesAsync();` stvarno zapisuje novi red u bazu
-5. zatim ponovno dohvaća zapis s uključenim statusom
-6. iz njega gradi `AnimalDto`
-7. vraća rezultat pomoću `CreatedAtAction(...)`
-
-### Što znači `_context.Animals.Add(animal);`
-
-Ova linija govori Entity Frameworku:
-
-- dodaj ovaj novi objekt u skup promjena
-- pripremi ga za unos u tablicu `Animals`
-
-Još uvijek nije zapisano u bazu. To se događa tek kod `SaveChangesAsync()`.
-
-### Što znači `await _context.SaveChangesAsync();`
-
-Ova linija izvršava stvarni upis u bazu.
-
-Tek nakon toga:
-- zapis stvarno postoji u tablici
-- `animal.Id` dobiva vrijednost novog primarnog ključa
-
-### Što je `var result = new AnimalDto`
-
-Nakon spremanja u bazu ne vraćaš direktno entitet `Animal`, nego gradiš DTO objekt za odgovor prema App sloju.
-
-To je važno jer:
-- App ne treba cijeli EF entitet
-- DTO kontrolira koji podaci izlaze van
-- ovdje odmah vraćaš i naziv statusa za prikaz
-
-### Što vraća `CreatedAtAction(...)`
-
-`CreatedAtAction(...)` vraća:
-- HTTP status **201 Created**
-- informaciju koja metoda može dohvatiti novostvoreni zapis
-- i sam DTO u tijelu odgovora
-
-To je ispravan REST odgovor za uspješan unos novog zapisa.
-
----
-
-### Korak 6.4 – `[HttpPut("{id}")]` za uređivanje postojeće životinje
-
-~~~csharp
-[HttpPut("{id}")]
-public async Task<IActionResult> UpdateAnimal(int id, SaveAnimalDto dto)
-{
-    var animal = await _context.Animals.FindAsync(id);
-
-    if (animal is null)
-        return NotFound();
-
-    animal.Name = dto.Name;
-    animal.Species = dto.Species;
-    animal.Breed = dto.Breed;
-    animal.Gender = dto.Gender;
-    animal.Age = dto.Age;
-    animal.ArrivalDate = dto.ArrivalDate;
-    animal.AnimalStatusId = dto.AnimalStatusId;
-    animal.ImageUrl = dto.ImageUrl;
-    animal.Description = dto.Description;
-
-    await _context.SaveChangesAsync();
-    return NoContent();
-}
-~~~
-
-### Što znači `[HttpPut("{id}")]`
-
-Ovaj atribut znači da se metoda poziva na PUT zahtjev s ID-em u ruti, npr.:
-
-`/api/animals/5`
-
-PUT se koristi kad želiš **ažurirati postojeći zapis**.
-
-### Što se događa u ovoj metodi
-
-1. metoda prima ID zapisa i `SaveAnimalDto`
-2. `_context.Animals.FindAsync(id)` pokušava naći zapis u bazi
-3. ako zapis ne postoji → vraća `404 NotFound`
-4. ako postoji → postojeća svojstva se prepisuju novim vrijednostima
-5. `SaveChangesAsync()` sprema promjene u bazu
-6. metoda vraća `204 NoContent`
-
-### Zašto se ovdje vraća `NoContent()`
-
-Kod uređivanja često nije potrebno vraćati cijeli zapis natrag, jer je dovoljno javiti da je promjena uspješno spremljena.
-
-`NoContent()` znači:
-- status 204
-- zahtjev je uspio
-- nema dodatnog sadržaja u odgovoru
+Na isti način treba prilagoditi i `GetAnimalById` te `UpdateAnimal`.
 
 ---
 
@@ -845,8 +560,7 @@ Tada pri otvaranju stranice dobivaš `404 Not Found`, jer `AnimalsCreate.razor` 
   title="Lookup kontroler za dropdown listu statusa"
   image="/images/aziledu/predavanje-8/previews/animalstatuses-controller.webp"
   imageAlt="Otvoren AnimalStatusesController"
-  imageCaption="Datoteka slike: animalstatuses-controller.webp"
-  imageDescription="Prikaži kontroler koji vraća lookup listu statusa za dropdown u create i edit formama."
+  imageCaption="Opis slike: kontroler koji vraća lookup listu statusa za dropdown u create i edit formama. Predloženo ime datoteke: animalstatuses-controller.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="csharp"
   code={`[HttpGet]
 public async Task<ActionResult<List<LookupDto>>> GetAnimalStatuses()
@@ -866,22 +580,104 @@ public async Task<ActionResult<List<LookupDto>>> GetAnimalStatuses()
 
 ---
 
-## Korak 8 – prepravi `Animals.razor`
+## Korak 8 – prepravi `AnimalsCreate.razor`
+
+Status više nije checkbox ni `bool`, nego dropdown.
+
+### Uvedi lookup listu
+
+~~~csharp
+private List<LookupDto> statusList = new();
+private DateTime? arrivalDate = DateTime.Today;
+~~~
+
+### U `OnInitializedAsync` dohvati statuse
+
+~~~csharp
+protected override async Task OnInitializedAsync()
+{
+    statusList = await Http.GetFromJsonAsync<List<LookupDto>>("api/animalstatuses") ?? new();
+}
+~~~
+
+### U formi zamijeni stari status novim dropdownom
+
+~~~razor
+<MudSelect T="int"
+           Label="Status"
+           @bind-Value="model.AnimalStatusId"
+           Required="true">
+    @foreach (var item in statusList)
+    {
+        <MudSelectItem T="int" Value="@item.Id">@item.Name</MudSelectItem>
+    }
+</MudSelect>
+~~~
+
+### Zašto sada ne koristimo stari checkbox
+
+Checkbox je dobar samo kad postoje točno dvije mogućnosti.  
+Ovdje više nemamo samo dvije mogućnosti, nego više statusa, pa dropdown ima više smisla.
+
+<CodePreviewSplit
+  title="`AnimalsCreate.razor` s novim dropdownom za status"
+  image="/images/aziledu/predavanje-8/previews/animalscreate-status-dropdown.webp"
+  imageAlt="Create forma s dropdown listom statusa"
+  imageCaption="Opis slike: forma za unos životinje s dropdown listom statusa dohvaćenom preko API-ja. Predloženo ime datoteke: animalscreate-status-dropdown.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
+  language="razor"
+  code={`<MudSelect T="int"
+           Label="Status"
+           @bind-Value="model.AnimalStatusId"
+           Required="true">
+    @foreach (var item in statusList)
+    {
+        <MudSelectItem T="int" Value="@item.Id">@item.Name</MudSelectItem>
+    }
+</MudSelect>`}
+/>
+
+---
+
+## Korak 9 – prepravi `AnimalsEdit.razor`
+
+Edit forma prati isti obrazac kao create forma.
+
+### Učitaj status listu
+
+~~~csharp
+statusList = await Http.GetFromJsonAsync<List<LookupDto>>("api/animalstatuses") ?? new();
+~~~
+
+### Kod učitavanja zapisa prebaci status u model
+
+~~~csharp
+model = new SaveAnimalDto
+{
+    Name = animal.Name,
+    Species = animal.Species,
+    Breed = animal.Breed,
+    Gender = animal.Gender,
+    Age = animal.Age,
+    ArrivalDate = animal.ArrivalDate,
+    AnimalStatusId = animal.AnimalStatusId,
+    ImageUrl = animal.ImageUrl,
+    Description = animal.Description
+};
+~~~
+
+### Što je ovdje važno
+
+Edit forma mora dobiti i:
+- tekst statusa za prikaz korisniku
+- `AnimalStatusId` za spremanje promjena
+
+Zato `AnimalDto` u ovom koraku sadrži i jedno i drugo.
+
+---
+
+## Korak 10 – prepravi `Animals.razor`
 
 Na listi životinja status se više ne računa iz `IsAdopted`, nego se prikazuje iz `Status`.
-
-### Što točno treba promijeniti
-
-Do sada je lista radila sa starim statusnim pristupom:
-- prikaz statusa se računao iz `IsAdopted`
-- filter statusa je bio `bool?`
-- chip je prikazivao dvije mogućnosti: udomljena / nije udomljena
-
-Sada to treba promijeniti u novi pristup:
-- `AnimalDto` donosi `Status`
-- na listi prikazuješ `@context.Status`
-- filter više nije `bool?`, nego `string? selectedStatus`
-- uspoređuješ tekst statusa, a ne bool vrijednost
 
 ### Prikaz statusa u tablici
 
@@ -921,152 +717,15 @@ Zato funkcija vraća samo:
 - `false` ako zapis ne zadovoljava kriterije
 
 <CodePreviewSplit
-  title="Animals nakon prebacivanja statusa na novu relaciju"
+  title="`Animals.razor` nakon prebacivanja statusa na novu relaciju"
   image="/images/aziledu/predavanje-8/previews/animals-status-filter.webp"
   imageAlt="Lista životinja s prikazom i filtriranjem statusa"
-  imageCaption="Datoteka slike: animals-status-filter.webp"
-  imageDescription="Prikaži listu životinja s prikazom statusa iz povezane tablice i filterom po statusu."
+  imageCaption="Opis slike: lista životinja s prikazom statusa iz povezane tablice i filterom po statusu. Predloženo ime datoteke: animals-status-filter.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="razor"
   code={`<MudChip T="string" Color="Color.Info">
     @context.Status
 </MudChip>`}
 />
-
----
-
-## Korak 9 – mijenjamo `AnimalsCreate.razor`
-
-Status više nije checkbox ni `bool`, nego dropdown.
-
-### Što točno treba promijeniti
-
-U staroj verziji forme status je bio vezan uz stari model:
-- ili checkbox
-- ili neki drugi jednostavni unos koji se oslanjao na `IsAdopted`
-
-Sada treba napraviti ove promjene:
-
-1. uvesti lookup listu statusa
-2. u `OnInitializedAsync()` dohvatiti statuse s API-ja
-3. u formi maknuti stari unos statusa
-4. umjesto njega dodati dropdown
-5. `SaveAnimalDto` mora imati `AnimalStatusId`
-6. forma pri spremanju šalje `AnimalStatusId`, a ne `bool`
-
-### Uvedi lookup listu
-
-~~~csharp
-private List<LookupDto> statusList = new();
-private DateTime? arrivalDate = DateTime.Today;
-~~~
-
-### U `OnInitializedAsync` dohvati statuse
-
-~~~csharp
-protected override async Task OnInitializedAsync()
-{
-    statusList = await Http.GetFromJsonAsync<List<LookupDto>>("api/animalstatuses") ?? new();
-}
-~~~
-
-### U formi zamijeni stari status novim dropdownom
-
-~~~razor
-<MudSelect T="int"
-           Label="Status"
-           @bind-Value="model.AnimalStatusId"
-           Required="true">
-    @foreach (var item in statusList)
-    {
-        <MudSelectItem T="int" Value="@item.Id">@item.Name</MudSelectItem>
-    }
-</MudSelect>
-~~~
-
-### Primjer cijelog dijela komponente
-
-~~~razor
-@code {
-    private SaveAnimalDto model = new();
-    private List<LookupDto> statusList = new();
-    private DateTime? arrivalDate = DateTime.Today;
-
-    protected override async Task OnInitializedAsync()
-    {
-        statusList = await Http.GetFromJsonAsync<List<LookupDto>>("api/animalstatuses") ?? new();
-    }
-}
-~~~
-
-### Zašto sada ne koristimo stari checkbox
-
-Checkbox je dobar samo kad postoje točno dvije mogućnosti.  
-Ovdje više nemamo samo dvije mogućnosti, nego više statusa, pa dropdown ima više smisla.
-
-<CodePreviewSplit
-  title="AnimalsCreate s novim dropdownom za status"
-  image="/images/aziledu/predavanje-8/previews/animalscreate-status-dropdown.webp"
-  imageAlt="Create forma s dropdown listom statusa"
-  imageCaption="Datoteka slike: animalscreate-status-dropdown.webp"
-  imageDescription="Prikaži formu za unos životinje s dropdown listom statusa dohvaćenom preko API-ja."
-  language="razor"
-  code={`<MudSelect T="int"
-           Label="Status"
-           @bind-Value="model.AnimalStatusId"
-           Required="true">
-    @foreach (var item in statusList)
-    {
-        <MudSelectItem T="int" Value="@item.Id">@item.Name</MudSelectItem>
-    }
-</MudSelect>`}
-/>
-
----
-
-## Korak 10 – mijenjamo `AnimalsEdit.razor`
-
-Edit forma prati isti obrazac kao create forma.
-
-### Što točno treba promijeniti
-
-U staroj verziji edit forma učitavala je stare podatke i radila sa starim statusom.  
-Sada treba:
-
-1. dohvatiti lookup listu statusa
-2. zadržati `AnimalStatusId` u modelu
-3. pri učitavanju zapisa prebaciti `AnimalStatusId` iz `AnimalDto` u `SaveAnimalDto`
-4. u formi koristiti isti dropdown kao na create stranici
-
-### Učitaj status listu
-
-~~~csharp
-statusList = await Http.GetFromJsonAsync<List<LookupDto>>("api/animalstatuses") ?? new();
-~~~
-
-### Kod učitavanja zapisa prebaci status u model
-
-~~~csharp
-model = new SaveAnimalDto
-{
-    Name = animal.Name,
-    Species = animal.Species,
-    Breed = animal.Breed,
-    Gender = animal.Gender,
-    Age = animal.Age,
-    ArrivalDate = animal.ArrivalDate,
-    AnimalStatusId = animal.AnimalStatusId,
-    ImageUrl = animal.ImageUrl,
-    Description = animal.Description
-};
-~~~
-
-### Što je ovdje važno
-
-Edit forma mora dobiti i:
-- tekst statusa za prikaz korisniku
-- `AnimalStatusId` za spremanje promjena
-
-Zato `AnimalDto` u ovom koraku sadrži i jedno i drugo.
 
 ---
 
@@ -1120,11 +779,10 @@ Update-Database
 Sad baza više nije ista kao u prethodnoj lekciji. `Animals` i dalje postoji, ali sada ima vezu prema novoj lookup tablici.
 
 <CodePreviewSplit
-  title="Dijagram baze nakon uvođenja tablice AnimalStatuses"
+  title="Dijagram baze nakon uvođenja tablice `AnimalStatuses`"
   image="/images/aziledu/predavanje-8/previews/db-after-animalstatus.webp"
   imageAlt="Nova baza s tablicama Animals i AnimalStatuses"
-  imageCaption="Datoteka slike: db-after-animalstatus.webp"
-  imageDescription="Prikaži dijagram nove baze u kojoj Animals ima strani ključ prema tablici AnimalStatuses."
+  imageCaption="Opis slike: dijagram nove baze u kojoj Animals ima strani ključ prema tablici AnimalStatuses. Predloženo ime datoteke: db-after-animalstatus.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="text"
   code={`AnimalStatuses
 - Id
@@ -1209,11 +867,10 @@ Species = a.Species != null ? a.Species.Name : string.Empty,
 #### 7. U create/edit formama zamijeni tekstualni unos vrste dropdown listom
 
 <CodePreviewSplit
-  title="Dijagram baze nakon uvođenja tablice Species"
+  title="Dijagram baze nakon uvođenja tablice `Species`"
   image="/images/aziledu/predavanje-8/previews/db-after-species.webp"
   imageAlt="Dijagram baze s novom tablicom Species"
-  imageCaption="Datoteka slike: db-after-species.webp"
-  imageDescription="Prikaži dijagram baze nakon što je tekstualna vrsta izdvojena u tablicu Species."
+  imageCaption="Opis slike: dijagram baze nakon što je tekstualna vrsta izdvojena u tablicu Species. Predloženo ime datoteke: db-after-species.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="text"
   code={`Species
 - Id
@@ -1294,11 +951,10 @@ Tu je važna logika:
 To je glavni razlog zašto je bilo dobro prvo odraditi `AnimalStatus`, pa tek onda uvoditi `Species` i `Breed`.
 
 <CodePreviewSplit
-  title="Dijagram baze nakon uvođenja tablice Breed"
+  title="Dijagram baze nakon uvođenja tablice `Breed`"
   image="/images/aziledu/predavanje-8/previews/db-after-breed.webp"
   imageAlt="Dijagram baze nakon uvođenja tablice Breed i veze prema Species"
-  imageCaption="Datoteka slike: db-after-breed.webp"
-  imageDescription="Prikaži dijagram baze nakon što je tekstualna pasmina izdvojena u tablicu Breed i povezana sa Species."
+  imageCaption="Opis slike: dijagram baze nakon što je tekstualna pasmina izdvojena u tablicu Breed i povezana sa Species. Predloženo ime datoteke: db-after-breed.webp. Upload lokacija: public/images/aziledu/predavanje-8/previews/"
   language="text"
   code={`Species
 - Id
